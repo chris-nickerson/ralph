@@ -187,6 +187,7 @@ ${BOLD}USAGE${RESET}
     ${SCRIPT_NAME} plan [goal]           Create implementation plan
     ${SCRIPT_NAME} refine [iterations]   Refine plan iteratively ${DIM}(default: 10)${RESET}
     ${SCRIPT_NAME} build [iterations]    Execute plan ${DIM}(default: 10)${RESET}
+    ${SCRIPT_NAME} update               Update to latest version
 
 ${BOLD}OPTIONS${RESET}
     -a, --agent     Agent to use: claude, codex, cursor ${DIM}(default: claude)${RESET}
@@ -230,6 +231,12 @@ while [[ $# -gt 0 ]]; do
     -a|--agent) AGENT_ARG="$2"; shift 2 ;;
     -d|--debug) DEBUG="true"; shift ;;
     -f|--force) FORCE="true"; shift ;;
+    update)
+      INSTALL_SCRIPT=$(curl -fsSL "https://raw.githubusercontent.com/chris-nickerson/ralph/main/install.sh") \
+        || { echo "Update failed: could not download installer" >&2; exit 1; }
+      bash <<< "$INSTALL_SCRIPT"
+      exit $?
+      ;;
     plan|refine|build) MODE="$1"; shift ;;
     *) POSITIONAL+=("$1"); shift ;;
   esac

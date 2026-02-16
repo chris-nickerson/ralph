@@ -2,30 +2,39 @@
 
 Autonomous coding loop that plans and implements features iteratively using AI agents.
 
+## Install
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/chris-nickerson/ralph/main/install.sh | bash
+```
+
+This installs to `~/.ralph/` and symlinks `ralph` to `~/.local/bin/`.
+
 ## Quick Start
 
 ```bash
 # 1. Plan
-./ralph.sh plan "Add user authentication"
+ralph plan "Add user authentication"
 
 # 2. Refine (iterates until the plan is rock solid)
-./ralph.sh refine
+ralph refine
 
 # 3. Review the plan
 cat IMPLEMENTATION_PLAN.md
 
 # 4. Build
-./ralph.sh build
+ralph build
 ```
 
 ## Commands
 
 ```bash
-./ralph.sh plan "goal"      # Create implementation plan
-./ralph.sh plan             # Plan from GOAL.md file
-./ralph.sh refine [n]       # Refine plan iteratively (default: 10 iterations)
-./ralph.sh build [n]        # Run build loop (default: 10 iterations)
-./ralph.sh plan --force     # Skip confirmation prompts
+ralph plan "goal"      # Create implementation plan
+ralph plan             # Plan from GOAL.md file
+ralph refine [n]       # Refine plan iteratively (default: 10 iterations)
+ralph build [n]        # Run build loop (default: 10 iterations)
+ralph plan --force     # Skip confirmation prompts
+ralph update           # Update to latest version
 ```
 
 ## Agents
@@ -33,8 +42,8 @@ cat IMPLEMENTATION_PLAN.md
 Supports Claude (default), Codex, and Cursor:
 
 ```bash
-./ralph.sh build --agent codex
-./ralph.sh build -a cursor
+ralph build --agent codex
+ralph build -a cursor
 ```
 
 ## How It Works
