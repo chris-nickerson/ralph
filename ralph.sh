@@ -64,16 +64,19 @@ print_kv() {
   printf "  ${DIM}%-8s${RESET} %s\n" "$key" "$value"
 }
 
-# Print iteration separator
-print_iteration() {
+# Print phase separator (used by build and refine loops)
+print_phase() {
   local current="$1"
-  local tasks="$2"
-  local task_word="tasks"
-  [[ "$tasks" -eq 1 ]] && task_word="task"
+  local phase="$2"
+  local detail="$3"
   
   echo ""
   echo "${DIM}$(line)${RESET}"
-  echo "  iteration ${current} ${DIM}${SYM_DOT}${RESET} ${tasks} ${task_word} remaining"
+  if [[ -n "$detail" ]]; then
+    echo "  iteration ${current} ${DIM}${SYM_DOT}${RESET} ${phase} ${DIM}${SYM_DOT}${RESET} ${detail}"
+  else
+    echo "  iteration ${current} ${DIM}${SYM_DOT}${RESET} ${phase}"
+  fi
   echo ""
 }
 
@@ -97,7 +100,7 @@ print_limit_reached() {
   echo ""
   echo "${DIM}$(line)${RESET}"
   echo "  ${YELLOW}${SYM_PAUSE}${RESET} iteration limit reached (${max})"
-  echo "  ${DIM}Run${RESET} ${SCRIPT_NAME} build ${DIM}to continue${RESET}"
+  echo "  ${DIM}Run${RESET} ${SCRIPT_NAME} ${MODE} ${DIM}to continue${RESET}"
   echo "${DIM}$(line)${RESET}"
   echo ""
 }
@@ -171,8 +174,6 @@ count_tasks() {
 
 RALPH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPT_NAME="$(basename "$0")"
-# shellcheck source=/dev/null
-[[ -f "ralph.env" ]] && source ralph.env
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Help
@@ -184,25 +185,21 @@ ${BOLD}ralph${RESET} ${DIM}-${RESET} autonomous coding loop
 
 ${BOLD}USAGE${RESET}
     ${SCRIPT_NAME} plan [goal]           Create implementation plan
+    ${SCRIPT_NAME} refine [iterations]   Refine plan iteratively ${DIM}(default: 10)${RESET}
     ${SCRIPT_NAME} build [iterations]    Execute plan ${DIM}(default: 10)${RESET}
 
 ${BOLD}OPTIONS${RESET}
+    -a, --agent     Agent to use: claude, codex, cursor ${DIM}(default: claude)${RESET}
     -d, --debug     Run agent in foreground (see output in real-time)
     -f, --force     Skip confirmation prompts
     -h, --help      Show this help
 
-${BOLD}AGENTS${RESET}
-    Set ${DIM}RALPH_AGENT${RESET} env var or add to ${DIM}ralph.env${RESET}:
-    
-    claude          Claude Code CLI ${DIM}(default)${RESET}
-    codex           OpenAI Codex CLI
-    cursor          Cursor agent CLI
-
 ${BOLD}EXAMPLES${RESET}
     ${SCRIPT_NAME} plan "Add user authentication"
+    ${SCRIPT_NAME} refine
     ${SCRIPT_NAME} build
     ${SCRIPT_NAME} build 5
-    RALPH_AGENT=codex ${SCRIPT_NAME} build
+    ${SCRIPT_NAME} build --agent codex
 
 ${BOLD}FILES${RESET}
     ${DIM}These files are created in your project directory:${RESET}
@@ -210,7 +207,6 @@ ${BOLD}FILES${RESET}
     GOAL.md                 Your objective ${DIM}(optional)${RESET}
     IMPLEMENTATION_PLAN.md  Generated task list
     progress.txt            Learning log
-    ralph.env               Agent configuration
 
 EOF
   exit 0
@@ -224,22 +220,24 @@ DEBUG="false"
 FORCE="false"
 MODE=""
 GOAL=""
+AGENT_ARG=""
 MAX_ITERATIONS=10
 POSITIONAL=()
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -h|--help) show_help ;;
+    -a|--agent) AGENT_ARG="$2"; shift 2 ;;
     -d|--debug) DEBUG="true"; shift ;;
     -f|--force) FORCE="true"; shift ;;
-    plan|build) MODE="$1"; shift ;;
+    plan|refine|build) MODE="$1"; shift ;;
     *) POSITIONAL+=("$1"); shift ;;
   esac
 done
 
 if [[ "$MODE" == "plan" ]]; then
   [[ ${#POSITIONAL[@]} -gt 0 ]] && GOAL="${POSITIONAL[*]}"
-elif [[ "$MODE" == "build" ]]; then
+elif [[ "$MODE" == "build" ]] || [[ "$MODE" == "refine" ]]; then
   [[ ${#POSITIONAL[@]} -gt 0 ]] && [[ "${POSITIONAL[0]}" =~ ^[0-9]+$ ]] && MAX_ITERATIONS="${POSITIONAL[0]}"
 fi
 
@@ -249,8 +247,7 @@ fi
 # Agent Setup
 # ─────────────────────────────────────────────────────────────────────────────
 
-RALPH_AGENT="${RALPH_AGENT:-claude}"
-PROMPT_FILE="$RALPH_DIR/PROMPT_${MODE}.md"
+RALPH_AGENT="${AGENT_ARG:-claude}"
 
 get_agent_cmd() {
   case "$RALPH_AGENT" in
@@ -272,9 +269,30 @@ if ! command -v "$AGENT_CMD" &>/dev/null; then
   exit 1
 fi
 
-if [[ ! -f "$PROMPT_FILE" ]]; then
-  print_error "prompt file not found: $PROMPT_FILE"
-  exit 1
+# Validate prompt files
+validate_prompts() {
+  for f in "$@"; do
+    if [[ ! -f "$f" ]]; then
+      print_error "prompt file not found: $f"
+      exit 1
+    fi
+  done
+}
+
+PROMPT_DIR="$RALPH_DIR/prompts"
+
+if [[ "$MODE" == "build" ]]; then
+  PROMPT_BUILD="$PROMPT_DIR/build.md"
+  PROMPT_REVIEW="$PROMPT_DIR/review.md"
+  PROMPT_REVIEW_FINAL="$PROMPT_DIR/review_final.md"
+  validate_prompts "$PROMPT_BUILD" "$PROMPT_REVIEW" "$PROMPT_REVIEW_FINAL"
+elif [[ "$MODE" == "refine" ]]; then
+  PROMPT_REFINE_INVESTIGATE="$PROMPT_DIR/refine_investigate.md"
+  PROMPT_REFINE_REVIEW="$PROMPT_DIR/refine_review.md"
+  validate_prompts "$PROMPT_REFINE_INVESTIGATE" "$PROMPT_REFINE_REVIEW"
+else
+  PROMPT_FILE="$PROMPT_DIR/${MODE}.md"
+  validate_prompts "$PROMPT_FILE"
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -511,6 +529,7 @@ run_plan() {
     echo "  ${GREEN}${SYM_CHECK}${RESET} ${DIM}${SYM_DOT}${RESET} plan created ${DIM}${SYM_DOT}${RESET} ${task_count} ${task_word} ${DIM}${SYM_DOT}${RESET} $(format_duration $elapsed)"
     echo "${DIM}$(line)${RESET}"
     echo ""
+    echo "  ${DIM}Refine:${RESET}  ${SCRIPT_NAME} refine"
     echo "  ${DIM}Review:${RESET}  cat IMPLEMENTATION_PLAN.md"
     echo "  ${DIM}Build:${RESET}   ${SCRIPT_NAME} build"
     echo ""
@@ -549,6 +568,10 @@ run_build() {
     exit 0
   fi
   
+  # Capture starting point for final review
+  local start_hash
+  start_hash=$(git rev-parse HEAD 2>/dev/null || echo "")
+  
   local start_time
   start_time=$(date +%s)
   local iteration=0
@@ -561,12 +584,22 @@ run_build() {
       exit 0
     fi
     
-    task_count=$(count_tasks)
-    print_iteration "$iteration" "$task_count"
-    
     local iter_start
     iter_start=$(date +%s)
-    run_agent "$(cat "$PROMPT_FILE")" "building" "$start_time" || true
+    
+    # Phase 1: Build (implement task, do not commit)
+    task_count=$(count_tasks)
+    local task_word="tasks"
+    [[ "$task_count" -eq 1 ]] && task_word="task"
+    print_phase "$iteration" "build" "${task_count} ${task_word} remaining"
+    
+    run_agent "$(cat "$PROMPT_BUILD")" "building" "$start_time" || true
+    
+    # Phase 2: Review (review changes, fix issues, commit)
+    print_phase "$iteration" "review"
+    
+    run_agent "$(cat "$PROMPT_REVIEW")" "reviewing" "$start_time" || true
+    
     local iter_end
     iter_end=$(date +%s)
     local iter_elapsed=$((iter_end - iter_start))
@@ -574,10 +607,20 @@ run_build() {
     echo ""
     echo "${DIM}  iteration elapsed: $(format_duration $iter_elapsed)${RESET}"
     
-    # Check for completion
-    local last_lines
-    last_lines=$(printf '%s' "$AGENT_OUTPUT" | tail -n 5)
-    if [[ "$last_lines" == *"<done>COMPLETE</done>"* ]]; then
+    # Check for completion via task count
+    task_count=$(count_tasks)
+    if [[ "$task_count" -eq 0 ]]; then
+      # Final comprehensive review of all changes
+      print_phase "$iteration" "final review"
+      
+      local final_prompt
+      final_prompt=$(cat "$PROMPT_REVIEW_FINAL")
+      if [[ -n "$start_hash" ]]; then
+        final_prompt+=$'\n\n## Diff Range\n\n'
+        final_prompt+="Review all changes from the start of this build: \`git diff ${start_hash}..HEAD\`"
+      fi
+      run_agent "$final_prompt" "final review" "$start_time" || true
+      
       local end_time
       end_time=$(date +%s)
       local elapsed=$((end_time - start_time))
@@ -590,10 +633,107 @@ run_build() {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Refine Mode
+# ─────────────────────────────────────────────────────────────────────────────
+
+run_refine() {
+  if ! has_content "IMPLEMENTATION_PLAN.md"; then
+    print_error "no implementation plan found"
+    echo ""
+    echo "  ${DIM}Create a plan first:${RESET}"
+    echo "  ${SCRIPT_NAME} plan \"your goal\""
+    echo ""
+    exit 1
+  fi
+  
+  local task_count
+  task_count=$(count_tasks)
+  
+  print_header "refining"
+  echo ""
+  print_kv "agent" "$RALPH_AGENT"
+  print_kv "tasks" "${task_count} in plan"
+  print_kv "limit" "${MAX_ITERATIONS} iterations"
+  
+  local start_time
+  start_time=$(date +%s)
+  local iteration=0
+  local consecutive_ready=0
+  local phase="investigate"
+  
+  while true; do
+    iteration=$((iteration + 1))
+    
+    if [[ "$iteration" -gt "$MAX_ITERATIONS" ]]; then
+      print_limit_reached "$MAX_ITERATIONS"
+      exit 0
+    fi
+    
+    # Select prompt for current phase
+    local prompt_file
+    if [[ "$phase" == "investigate" ]]; then
+      prompt_file="$PROMPT_REFINE_INVESTIGATE"
+    else
+      prompt_file="$PROMPT_REFINE_REVIEW"
+    fi
+    
+    print_phase "$iteration" "$phase"
+    
+    local iter_start
+    iter_start=$(date +%s)
+    run_agent "$(cat "$prompt_file")" "$phase" "$start_time" || true
+    local iter_end
+    iter_end=$(date +%s)
+    local iter_elapsed=$((iter_end - iter_start))
+    
+    echo ""
+    echo "${DIM}  iteration elapsed: $(format_duration $iter_elapsed)${RESET}"
+    
+    # Check for ready signal
+    local last_lines
+    last_lines=$(printf '%s' "$AGENT_OUTPUT" | tail -n 5)
+    if [[ "$last_lines" == *"<done>PLAN_READY</done>"* ]]; then
+      consecutive_ready=$((consecutive_ready + 1))
+      echo "  ${DIM}${phase}: plan is ready (${consecutive_ready}/2)${RESET}"
+      
+      if [[ "$consecutive_ready" -ge 2 ]]; then
+        local end_time
+        end_time=$(date +%s)
+        local elapsed=$((end_time - start_time))
+        local iter_word="iteration"
+        [[ "$iteration" -ne 1 ]] && iter_word="iterations"
+        
+        echo ""
+        echo "${DIM}$(line)${RESET}"
+        echo "  ${GREEN}${SYM_CHECK}${RESET} ${DIM}${SYM_DOT}${RESET} plan ready ${DIM}${SYM_DOT}${RESET} ${iteration} ${iter_word} ${DIM}${SYM_DOT}${RESET} $(format_duration $elapsed)"
+        echo "${DIM}$(line)${RESET}"
+        echo ""
+        echo "  ${DIM}Review:${RESET}  cat IMPLEMENTATION_PLAN.md"
+        echo "  ${DIM}Build:${RESET}   ${SCRIPT_NAME} build"
+        echo ""
+        exit 0
+      fi
+    else
+      consecutive_ready=0
+    fi
+    
+    # Toggle phase
+    if [[ "$phase" == "investigate" ]]; then
+      phase="review"
+    else
+      phase="investigate"
+    fi
+    
+    sleep 1
+  done
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Main
 # ─────────────────────────────────────────────────────────────────────────────
 
 case "$MODE" in
-  plan)  run_plan ;;
-  build) run_build ;;
+  plan)   run_plan ;;
+  refine) run_refine ;;
+  build)  run_build ;;
 esac

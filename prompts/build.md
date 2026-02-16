@@ -1,6 +1,6 @@
 You are in BUILD mode. Implement one task from the plan.
 
-This prompt runs in a loop—each invocation handles one task, commits, and exits. The orchestration layer calls you again for the next task. This architecture enables progress tracking and recovery between tasks.
+This prompt runs in a loop—each invocation handles one task and exits. A separate review step validates and commits your work. The orchestration layer manages the sequence.
 
 ## Context Loading
 
@@ -32,11 +32,11 @@ Make the minimal changes needed to complete the task:
 
 ### Step 3: Validate
 
-Run validation before committing:
+Run validation before continuing:
 - Run linters/formatters if configured for the project
 - Run tests if they exist
 
-Fix any failures before proceeding. Do NOT commit if validation fails.
+Fix any failures before proceeding.
 
 ### Step 4: Update State
 
@@ -50,21 +50,4 @@ Fix any failures before proceeding. Do NOT commit if validation fails.
    ---
    ```
 
-### Step 5: Commit
-
-```bash
-git add -A
-git commit -m "type: description"
-```
-
-Use conventional commit types: feat, fix, refactor, test, docs, chore
-
-**Do NOT commit:** `progress.txt`, `IMPLEMENTATION_PLAN.md`, or other Ralph infrastructure files.
-
-**Do NOT add co-author lines** or AI attribution to commit messages.
-
-## Completion
-
-After committing:
-- If there are more `[ ]` tasks remaining: Exit so the orchestration loop can invoke the next iteration.
-- If ALL tasks are `[x]` complete: Output `<done>COMPLETE</done>`
+**Do NOT commit** — the review step handles the commit.

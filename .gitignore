@@ -13,6 +13,3 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
-
-# Ralph (session-specific, not committed)
-ralph.env
