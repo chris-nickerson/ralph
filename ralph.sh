@@ -193,7 +193,9 @@ count_tasks() {
 # Setup
 # ─────────────────────────────────────────────────────────────────────────────
 
-RALPH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SOURCE="${BASH_SOURCE[0]}"
+[[ -L "$SOURCE" ]] && SOURCE="$(readlink "$SOURCE")"
+RALPH_DIR="$(cd "$(dirname "$SOURCE")" && pwd)"
 SCRIPT_NAME="$(basename "$0")"
 
 # ─────────────────────────────────────────────────────────────────────────────
