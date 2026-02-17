@@ -100,8 +100,29 @@ print_limit_reached() {
   echo ""
   echo "${DIM}$(line)${RESET}"
   echo "  ${YELLOW}${SYM_PAUSE}${RESET} iteration limit reached (${max})"
-  echo "  ${DIM}Run${RESET} ${SCRIPT_NAME} ${MODE} ${DIM}to continue${RESET}"
+  [[ "$WORKTREE" != "true" ]] && echo "  ${DIM}Run${RESET} ${SCRIPT_NAME} ${MODE} ${DIM}to continue${RESET}"
   echo "${DIM}$(line)${RESET}"
+  echo ""
+}
+
+# Print worktree next steps
+# Usage: print_worktree_next [merge|resume|build|plan]
+print_worktree_next() {
+  [[ "$WORKTREE" != "true" ]] && return
+  WORKTREE_DONE="true"
+  local action="${1:-merge}"
+  local reldir="../${WORKTREE_NAME}"
+  print_kv "branch" "$WORKTREE_BRANCH"
+  case "$action" in
+    merge)  print_kv "merge"  "git merge ${WORKTREE_BRANCH}" ;;
+    resume) print_kv "resume" "cd ${reldir} && ${SCRIPT_NAME} ${MODE}" ;;
+    build)  print_kv "build"  "cd ${reldir} && ${SCRIPT_NAME} build" ;;
+    plan)
+      print_kv "refine" "cd ${reldir} && ${SCRIPT_NAME} refine"
+      print_kv "build"  "cd ${reldir} && ${SCRIPT_NAME} build"
+      ;;
+  esac
+  print_kv "cleanup" "git worktree remove ${reldir}"
   echo ""
 }
 
@@ -194,6 +215,7 @@ ${BOLD}OPTIONS${RESET}
     -d, --debug     Run agent in foreground (see output in real-time)
     -f, --force     Skip confirmation prompts
     -h, --help      Show this help
+    -w, --worktree  Run in a git worktree ${DIM}(isolates changes)${RESET}
 
 ${BOLD}EXAMPLES${RESET}
     ${SCRIPT_NAME} plan "Add user authentication"
@@ -219,6 +241,7 @@ EOF
 
 DEBUG="false"
 FORCE="false"
+WORKTREE="false"
 MODE=""
 GOAL=""
 AGENT_ARG=""
@@ -231,6 +254,7 @@ while [[ $# -gt 0 ]]; do
     -a|--agent) AGENT_ARG="$2"; shift 2 ;;
     -d|--debug) DEBUG="true"; shift ;;
     -f|--force) FORCE="true"; shift ;;
+    -w|--worktree) WORKTREE="true"; shift ;;
     update)
       INSTALL_SCRIPT=$(curl -fsSL "https://raw.githubusercontent.com/chris-nickerson/ralph/main/install.sh") \
         || { echo "Update failed: could not download installer" >&2; exit 1; }
@@ -249,6 +273,73 @@ elif [[ "$MODE" == "build" ]] || [[ "$MODE" == "refine" ]]; then
 fi
 
 [[ -z "$MODE" ]] && MODE="build"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Cleanup & Signal Handling
+# ─────────────────────────────────────────────────────────────────────────────
+
+TMPFILE=""
+CURSOR_HIDDEN="false"
+
+cleanup() {
+  local exit_code
+  exit_code=$?
+  set +e
+
+  # Restore cursor if we hid it
+  if [[ "$CURSOR_HIDDEN" == "true" ]]; then
+    printf "\e[?25h" 2>/dev/null || true
+  fi
+  # Clean up temp file
+  if [[ -n "$TMPFILE" ]] && [[ -f "$TMPFILE" ]]; then
+    rm -f "$TMPFILE" || true
+  fi
+  # Kill any background agent process
+  if [[ -n "$AGENT_PID" ]]; then
+    kill "$AGENT_PID" 2>/dev/null || true
+  fi
+  # Hint about orphaned worktree if we never printed next-step instructions
+  if [[ "$WORKTREE" == "true" ]] && [[ "$WORKTREE_DONE" != "true" ]] && [[ -d "${WORKTREE_DIR:-}" ]]; then
+    echo "  ${DIM}worktree remains at ../${WORKTREE_NAME}${RESET}" >&2
+  fi
+
+  return "$exit_code"
+}
+
+trap cleanup EXIT INT TERM
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Worktree Setup
+# ─────────────────────────────────────────────────────────────────────────────
+
+WORKTREE_BRANCH=""
+WORKTREE_NAME=""
+WORKTREE_DONE="false"
+
+if [[ "$WORKTREE" == "true" ]]; then
+  REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || {
+    print_error "not a git repo; --worktree requires git"
+    exit 1
+  }
+
+  REPO_NAME=$(basename "$REPO_ROOT")
+  TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+  WORKTREE_BRANCH="ralph/${MODE}-${TIMESTAMP}"
+  WORKTREE_NAME="${REPO_NAME}-ralph-${TIMESTAMP##*-}"
+  WORKTREE_DIR="$(dirname "$REPO_ROOT")/${WORKTREE_NAME}"
+
+  wt_err=$(git worktree add -b "$WORKTREE_BRANCH" "$WORKTREE_DIR" HEAD 2>&1) || {
+    print_error "failed to create worktree at ../${WORKTREE_NAME}"
+    [[ -n "$wt_err" ]] && echo "  ${DIM}${wt_err}${RESET}" >&2
+    exit 1
+  }
+
+  for f in IMPLEMENTATION_PLAN.md progress.txt GOAL.md; do
+    [[ -f "$f" ]] && cp "$f" "$WORKTREE_DIR/"
+  done
+
+  cd "$WORKTREE_DIR"
+fi
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Agent Setup
@@ -301,36 +392,6 @@ else
   PROMPT_FILE="$PROMPT_DIR/${MODE}.md"
   validate_prompts "$PROMPT_FILE"
 fi
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Cleanup & Signal Handling
-# ─────────────────────────────────────────────────────────────────────────────
-
-TMPFILE=""
-CURSOR_HIDDEN="false"
-
-cleanup() {
-  local exit_code
-  exit_code=$?
-  set +e
-
-  # Restore cursor if we hid it
-  if [[ "$CURSOR_HIDDEN" == "true" ]]; then
-    printf "\e[?25h" 2>/dev/null || true
-  fi
-  # Clean up temp file
-  if [[ -n "$TMPFILE" ]] && [[ -f "$TMPFILE" ]]; then
-    rm -f "$TMPFILE" || true
-  fi
-  # Kill any background agent process
-  if [[ -n "$AGENT_PID" ]]; then
-    kill "$AGENT_PID" 2>/dev/null || true
-  fi
-
-  return "$exit_code"
-}
-
-trap cleanup EXIT INT TERM
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Agent Runner
@@ -501,6 +562,10 @@ run_plan() {
   print_header "planning"
   echo ""
   print_kv "agent" "$RALPH_AGENT"
+  if [[ "$WORKTREE" == "true" ]]; then
+    print_kv "branch" "$WORKTREE_BRANCH"
+    print_kv "path" "../${WORKTREE_NAME}"
+  fi
   print_kv "goal" "$goal_display"
   echo ""
   
@@ -536,10 +601,14 @@ run_plan() {
     echo "  ${GREEN}${SYM_CHECK}${RESET} ${DIM}${SYM_DOT}${RESET} plan created ${DIM}${SYM_DOT}${RESET} ${task_count} ${task_word} ${DIM}${SYM_DOT}${RESET} $(format_duration $elapsed)"
     echo "${DIM}$(line)${RESET}"
     echo ""
-    echo "  ${DIM}Refine:${RESET}  ${SCRIPT_NAME} refine"
-    echo "  ${DIM}Review:${RESET}  cat IMPLEMENTATION_PLAN.md"
-    echo "  ${DIM}Build:${RESET}   ${SCRIPT_NAME} build"
-    echo ""
+    if [[ "$WORKTREE" == "true" ]]; then
+      print_worktree_next plan
+    else
+      echo "  ${DIM}Refine:${RESET}  ${SCRIPT_NAME} refine"
+      echo "  ${DIM}Review:${RESET}  cat IMPLEMENTATION_PLAN.md"
+      echo "  ${DIM}Build:${RESET}   ${SCRIPT_NAME} build"
+      echo ""
+    fi
   fi
 }
 
@@ -563,6 +632,10 @@ run_build() {
   print_header "building"
   echo ""
   print_kv "agent" "$RALPH_AGENT"
+  if [[ "$WORKTREE" == "true" ]]; then
+    print_kv "branch" "$WORKTREE_BRANCH"
+    print_kv "path" "../${WORKTREE_NAME}"
+  fi
   print_kv "tasks" "${task_count} remaining"
   print_kv "limit" "${MAX_ITERATIONS} iterations"
   
@@ -572,6 +645,7 @@ run_build() {
     echo "  ${GREEN}${SYM_CHECK}${RESET} all tasks complete"
     echo "${DIM}$(line)${RESET}"
     echo ""
+    print_worktree_next
     exit 0
   fi
   
@@ -588,6 +662,7 @@ run_build() {
     
     if [[ "$iteration" -gt "$MAX_ITERATIONS" ]]; then
       print_limit_reached "$MAX_ITERATIONS"
+      print_worktree_next resume
       exit 0
     fi
     
@@ -632,6 +707,7 @@ run_build() {
       end_time=$(date +%s)
       local elapsed=$((end_time - start_time))
       print_complete "$iteration" "$(format_duration $elapsed)"
+      print_worktree_next
       exit 0
     fi
     
@@ -659,6 +735,10 @@ run_refine() {
   print_header "refining"
   echo ""
   print_kv "agent" "$RALPH_AGENT"
+  if [[ "$WORKTREE" == "true" ]]; then
+    print_kv "branch" "$WORKTREE_BRANCH"
+    print_kv "path" "../${WORKTREE_NAME}"
+  fi
   print_kv "tasks" "${task_count} in plan"
   print_kv "limit" "${MAX_ITERATIONS} iterations"
   
@@ -673,6 +753,7 @@ run_refine() {
     
     if [[ "$iteration" -gt "$MAX_ITERATIONS" ]]; then
       print_limit_reached "$MAX_ITERATIONS"
+      print_worktree_next resume
       exit 0
     fi
     
@@ -715,9 +796,13 @@ run_refine() {
         echo "  ${GREEN}${SYM_CHECK}${RESET} ${DIM}${SYM_DOT}${RESET} plan ready ${DIM}${SYM_DOT}${RESET} ${iteration} ${iter_word} ${DIM}${SYM_DOT}${RESET} $(format_duration $elapsed)"
         echo "${DIM}$(line)${RESET}"
         echo ""
-        echo "  ${DIM}Review:${RESET}  cat IMPLEMENTATION_PLAN.md"
-        echo "  ${DIM}Build:${RESET}   ${SCRIPT_NAME} build"
-        echo ""
+        if [[ "$WORKTREE" == "true" ]]; then
+          print_worktree_next build
+        else
+          echo "  ${DIM}Review:${RESET}  cat IMPLEMENTATION_PLAN.md"
+          echo "  ${DIM}Build:${RESET}   ${SCRIPT_NAME} build"
+          echo ""
+        fi
         exit 0
       fi
     else

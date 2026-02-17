@@ -34,8 +34,20 @@ ralph plan             # Plan from GOAL.md file
 ralph refine [n]       # Refine plan iteratively (default: 10 iterations)
 ralph build [n]        # Run build loop (default: 10 iterations)
 ralph plan --force     # Skip confirmation prompts
+ralph build -w         # Run build in a git worktree
 ralph update           # Update to latest version
 ```
+
+## Worktrees
+
+Run without blocking your working directory:
+
+```bash
+ralph build -w
+ralph plan -w "Add authentication"
+```
+
+Creates a branch and worktree, runs there, and prints next-step instructions when done. You keep working in your main checkout while ralph operates in isolation.
 
 ## Agents
 
