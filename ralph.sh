@@ -122,7 +122,7 @@ print_worktree_next() {
       print_kv "build"  "cd ${reldir} && ${SCRIPT_NAME} build"
       ;;
   esac
-  print_kv "cleanup" "git worktree remove ${reldir}"
+  print_kv "cleanup" "git worktree remove --force ${reldir}"
   echo ""
 }
 
