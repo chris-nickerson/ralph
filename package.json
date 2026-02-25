@@ -2,6 +2,7 @@
   "name": "ralph-cli",
   "version": "1.0.0",
   "description": "AI-powered CLI tool for planning and building software",
+  "engines": { "node": ">=20" },
   "type": "module",
   "bin": {
     "ralph": "dist/cli.js"

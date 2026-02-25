@@ -1,5 +1,6 @@
 import pc from "picocolors";
 import { createInterface } from "node:readline";
+import type { WorktreeInfo } from "./git.js";
 
 const isTTY =
   process.stdout.isTTY === true && process.env.TERM !== "dumb";
@@ -93,12 +94,6 @@ export function printLimitReached(
   }
   console.log(dim(line()));
   console.log("");
-}
-
-export interface WorktreeInfo {
-  branch: string;
-  name: string;
-  dir: string;
 }
 
 export function printWorktreeNext(

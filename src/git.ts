@@ -3,10 +3,13 @@ import { copyFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import { promisify } from "node:util";
 
-export type { WorktreeInfo } from "./ui.js";
-import type { WorktreeInfo } from "./ui.js";
-
 const execFile = promisify(execFileCb);
+
+export interface WorktreeInfo {
+  branch: string;
+  name: string;
+  dir: string;
+}
 
 export async function getRepoRoot(): Promise<string> {
   const { stdout } = await execFile("git", ["rev-parse", "--show-toplevel"]);
