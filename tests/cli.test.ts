@@ -49,6 +49,7 @@ describe("CLI --help", () => {
     expect(stdout).toContain("-n, --no-commit");
     expect(stdout).toContain("--no-review");
     expect(stdout).toContain("-w, --worktree");
+    expect(stdout).toContain("-t, --timeout");
   });
 });
 
