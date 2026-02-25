@@ -73,7 +73,7 @@ Use `--no-review` to skip review phases (build agent implements and commits dire
 
 | File | Purpose |
 |------|---------|
-| `ralph.sh` | Main script |
+| `src/` | TypeScript source (compiled to `dist/`) |
 | `prompts/plan.md` | Planning prompt |
 | `prompts/refine_investigate.md` | Refine investigation prompt |
 | `prompts/refine_review.md` | Refine review prompt |
@@ -85,6 +85,8 @@ Use `--no-review` to skip review phases (build agent implements and commits dire
 | `progress.txt` | Learning log between iterations |
 
 ## Requirements
+
+- [Node.js](https://nodejs.org/) >= 20
 
 One of:
 - [Claude CLI](https://github.com/anthropics/claude-cli) (`claude`)
