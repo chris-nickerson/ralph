@@ -87,7 +87,10 @@ program
     const options = makeOptions(program);
     const config = validateAgent(options.agent);
     checkAgentInstalled(config);
-    const max = iterations ? parseInt(iterations, 10) : 10;
+    const max =
+      iterations && /^\d+$/.test(iterations)
+        ? parseInt(iterations, 10)
+        : 10;
     const wt = options.worktree
       ? await setupWorktree("refine")
       : undefined;
@@ -103,7 +106,10 @@ program
     const options = makeOptions(program);
     const config = validateAgent(options.agent);
     checkAgentInstalled(config);
-    const max = iterations ? parseInt(iterations, 10) : 10;
+    const max =
+      iterations && /^\d+$/.test(iterations)
+        ? parseInt(iterations, 10)
+        : 10;
     const wt = options.worktree
       ? await setupWorktree("build")
       : undefined;
