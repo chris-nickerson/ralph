@@ -1,5 +1,5 @@
-import { validateAgent, runAgent } from "../agent.js";
-import type { RalphOptions } from "../agent.js";
+import { runAgent } from "../agent.js";
+import type { AgentConfig, RalphOptions } from "../agent.js";
 import type { WorktreeInfo } from "../git.js";
 import { loadRefinePrompt } from "../prompt.js";
 import { hasContent, countTasks } from "../state.js";
@@ -26,6 +26,7 @@ function sleep(ms: number): Promise<void> {
 
 export async function runRefine(
   maxIterations: number,
+  config: AgentConfig,
   options: RalphOptions,
   worktreeInfo?: WorktreeInfo,
 ): Promise<void> {
@@ -50,7 +51,6 @@ export async function runRefine(
   printKv("tasks", `${taskCount} in plan`);
   printKv("limit", `${maxIterations} iterations`);
 
-  const config = validateAgent(options.agent);
   const startTime = Date.now();
   let iteration = 0;
   let consecutiveReady = 0;

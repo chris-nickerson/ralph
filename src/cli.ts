@@ -76,7 +76,7 @@ program
       ? await setupWorktree("plan")
       : undefined;
     const { runPlan } = await import("./commands/plan.js");
-    await runPlan(goal, options, wt);
+    await runPlan(goal, config, options, wt);
     worktreeDone = true;
   });
 
@@ -95,7 +95,7 @@ program
       ? await setupWorktree("refine")
       : undefined;
     const { runRefine } = await import("./commands/refine.js");
-    await runRefine(max, options, wt);
+    await runRefine(max, config, options, wt);
     worktreeDone = true;
   });
 
@@ -114,7 +114,7 @@ program
       ? await setupWorktree("build")
       : undefined;
     const { runBuild } = await import("./commands/build.js");
-    await runBuild(max, options, wt);
+    await runBuild(max, config, options, wt);
     worktreeDone = true;
   });
 

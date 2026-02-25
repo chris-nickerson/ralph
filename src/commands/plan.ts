@@ -1,5 +1,5 @@
-import { validateAgent, runAgent } from "../agent.js";
-import type { RalphOptions } from "../agent.js";
+import { runAgent } from "../agent.js";
+import type { AgentConfig, RalphOptions } from "../agent.js";
 import type { WorktreeInfo } from "../git.js";
 import { buildPlanPrompt } from "../prompt.js";
 import { hasContent, countTasks, clearStateFiles } from "../state.js";
@@ -22,6 +22,7 @@ const SCRIPT_NAME = "ralph";
 
 export async function runPlan(
   goal: string | undefined,
+  config: AgentConfig,
   options: RalphOptions,
   worktreeInfo?: WorktreeInfo,
 ): Promise<void> {
@@ -63,7 +64,6 @@ export async function runPlan(
   console.log("");
 
   const startTime = Date.now();
-  const config = validateAgent(options.agent);
   const prompt = await buildPlanPrompt(goal);
 
   await runAgent(prompt, config, options, "planning", startTime);

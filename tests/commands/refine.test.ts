@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { RalphOptions } from "../../src/agent.js";
 
 const mocks = vi.hoisted(() => ({
-  validateAgent: vi.fn(),
   runAgent: vi.fn(),
   hasContent: vi.fn(),
   countTasks: vi.fn(),
@@ -16,7 +15,6 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("../../src/agent.js", () => ({
-  validateAgent: mocks.validateAgent,
   runAgent: mocks.runAgent,
 }));
 
@@ -69,7 +67,6 @@ describe("runRefine", () => {
     }) as never);
     consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-    mocks.validateAgent.mockReturnValue(agentConfig);
     mocks.hasContent.mockResolvedValue(true);
     mocks.countTasks.mockResolvedValue(5);
     mocks.loadRefinePrompt.mockResolvedValue("refine prompt");
@@ -84,7 +81,7 @@ describe("runRefine", () => {
   it("errors when no plan exists", async () => {
     mocks.hasContent.mockResolvedValue(false);
 
-    await expect(runRefine(10, defaultOptions)).rejects.toThrow("EXIT");
+    await expect(runRefine(10, agentConfig, defaultOptions)).rejects.toThrow("EXIT");
     expect(exitSpy).toHaveBeenCalledWith(1);
     expect(mocks.printError).toHaveBeenCalledWith("no implementation plan found");
   });
@@ -94,7 +91,7 @@ describe("runRefine", () => {
 
     mocks.runAgent.mockResolvedValue({ output: "working", exitCode: 0 });
 
-    const promise = runRefine(3, defaultOptions);
+    const promise = runRefine(3, agentConfig, defaultOptions);
     promise.catch(() => {});
 
     for (let i = 0; i < 3; i++) {
@@ -122,7 +119,7 @@ describe("runRefine", () => {
       .mockResolvedValueOnce({ output: "more work\n", exitCode: 0 })
       .mockResolvedValue({ output: "still working", exitCode: 0 });
 
-    const promise = runRefine(5, defaultOptions);
+    const promise = runRefine(5, agentConfig, defaultOptions);
     promise.catch(() => {});
 
     for (let i = 0; i < 5; i++) {
@@ -143,7 +140,7 @@ describe("runRefine", () => {
       .mockResolvedValueOnce({ output: "lines\n<done>PLAN_READY</done>\n", exitCode: 0 })
       .mockResolvedValueOnce({ output: "lines\n<done>PLAN_READY</done>\n", exitCode: 0 });
 
-    const promise = runRefine(10, defaultOptions);
+    const promise = runRefine(10, agentConfig, defaultOptions);
     promise.catch(() => {});
 
     await vi.advanceTimersByTimeAsync(1000);
@@ -165,7 +162,7 @@ describe("runRefine", () => {
       .mockResolvedValueOnce({ output: "<done>PLAN_READY</done>\n", exitCode: 0 })
       .mockResolvedValue({ output: "no signal\n", exitCode: 0 });
 
-    const promise = runRefine(5, defaultOptions);
+    const promise = runRefine(5, agentConfig, defaultOptions);
     promise.catch(() => {});
 
     for (let i = 0; i < 5; i++) {
@@ -182,7 +179,7 @@ describe("runRefine", () => {
 
     mocks.runAgent.mockResolvedValue({ output: "working", exitCode: 0 });
 
-    const promise = runRefine(2, defaultOptions);
+    const promise = runRefine(2, agentConfig, defaultOptions);
     promise.catch(() => {});
 
     await vi.advanceTimersByTimeAsync(1000);
@@ -200,7 +197,7 @@ describe("runRefine", () => {
 
     mocks.runAgent.mockResolvedValue({ output: "working", exitCode: 0 });
 
-    const promise = runRefine(1, defaultOptions, worktreeInfo);
+    const promise = runRefine(1, agentConfig, defaultOptions, worktreeInfo);
     promise.catch(() => {});
 
     await vi.advanceTimersByTimeAsync(1000);

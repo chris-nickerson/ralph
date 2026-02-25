@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { RalphOptions } from "../../src/agent.js";
 
 const mocks = vi.hoisted(() => ({
-  validateAgent: vi.fn(),
   runAgent: vi.fn(),
   hasContent: vi.fn(),
   countTasks: vi.fn(),
@@ -16,7 +15,6 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("../../src/agent.js", () => ({
-  validateAgent: mocks.validateAgent,
   runAgent: mocks.runAgent,
 }));
 
@@ -67,7 +65,6 @@ describe("runPlan", () => {
       throw new Error("EXIT");
     }) as never);
 
-    mocks.validateAgent.mockReturnValue(agentConfig);
     mocks.runAgent.mockResolvedValue({ output: "done", exitCode: 0 });
     mocks.hasContent.mockResolvedValue(false);
     mocks.countTasks.mockResolvedValue(0);
@@ -84,7 +81,7 @@ describe("runPlan", () => {
     };
     mocks.hasContent.mockImplementation(async (p: string) => contentMap[p] ?? false);
 
-    await runPlan("my goal", defaultOptions);
+    await runPlan("my goal", agentConfig, defaultOptions);
 
     expect(mocks.printWarning).toHaveBeenCalledWith("existing state will be cleared:");
     expect(mocks.confirm).toHaveBeenCalledWith("Continue?", "n", false);
@@ -97,7 +94,7 @@ describe("runPlan", () => {
     );
     mocks.confirm.mockResolvedValue(false);
 
-    await expect(runPlan("goal", defaultOptions)).rejects.toThrow("EXIT");
+    await expect(runPlan("goal", agentConfig, defaultOptions)).rejects.toThrow("EXIT");
     expect(exitSpy).toHaveBeenCalledWith(0);
     expect(mocks.clearStateFiles).not.toHaveBeenCalled();
   });
@@ -109,31 +106,30 @@ describe("runPlan", () => {
     };
     mocks.hasContent.mockImplementation(async (p: string) => contentMap[p] ?? false);
 
-    await runPlan("goal", { ...defaultOptions, force: true });
+    await runPlan("goal", agentConfig, { ...defaultOptions, force: true });
 
     expect(mocks.confirm).toHaveBeenCalledWith("Continue?", "n", true);
     expect(mocks.clearStateFiles).toHaveBeenCalled();
   });
 
   it("clears state files before planning", async () => {
-    await runPlan("goal", defaultOptions);
+    await runPlan("goal", agentConfig, defaultOptions);
     expect(mocks.clearStateFiles).toHaveBeenCalled();
   });
 
   it("builds prompt with goal from arg", async () => {
-    await runPlan("implement auth", defaultOptions);
+    await runPlan("implement auth", agentConfig, defaultOptions);
     expect(mocks.buildPlanPrompt).toHaveBeenCalledWith("implement auth");
   });
 
   it("builds prompt with undefined goal when no arg", async () => {
-    await runPlan(undefined, defaultOptions);
+    await runPlan(undefined, agentConfig, defaultOptions);
     expect(mocks.buildPlanPrompt).toHaveBeenCalledWith(undefined);
   });
 
   it("calls runAgent with correct params", async () => {
-    await runPlan("goal", defaultOptions);
+    await runPlan("goal", agentConfig, defaultOptions);
 
-    expect(mocks.validateAgent).toHaveBeenCalledWith("claude");
     expect(mocks.runAgent).toHaveBeenCalledWith(
       "plan prompt",
       agentConfig,
@@ -155,7 +151,7 @@ describe("runPlan", () => {
     mocks.countTasks.mockResolvedValue(5);
 
     const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    await runPlan("goal", defaultOptions);
+    await runPlan("goal", agentConfig, defaultOptions);
 
     expect(mocks.countTasks).toHaveBeenCalled();
     expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("5 tasks"));
@@ -175,19 +171,19 @@ describe("runPlan", () => {
 
     const worktreeInfo = { branch: "ralph/plan-20260224", name: "repo-ralph-120000", dir: "/tmp/repo-ralph-120000" };
     const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    await runPlan("goal", defaultOptions, worktreeInfo);
+    await runPlan("goal", agentConfig, defaultOptions, worktreeInfo);
     consoleSpy.mockRestore();
 
     expect(mocks.printWorktreeNext).toHaveBeenCalledWith("plan", worktreeInfo, "ralph", "plan");
   });
 
   it("prints header with planning mode", async () => {
-    await runPlan("goal", defaultOptions);
+    await runPlan("goal", agentConfig, defaultOptions);
     expect(mocks.printHeader).toHaveBeenCalledWith("planning");
   });
 
   it("prints agent info", async () => {
-    await runPlan("goal", defaultOptions);
+    await runPlan("goal", agentConfig, defaultOptions);
     expect(mocks.printKv).toHaveBeenCalledWith("agent", "claude");
   });
 });

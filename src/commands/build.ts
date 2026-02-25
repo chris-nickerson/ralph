@@ -1,5 +1,5 @@
-import { validateAgent, runAgent } from "../agent.js";
-import type { RalphOptions } from "../agent.js";
+import { runAgent } from "../agent.js";
+import type { AgentConfig, RalphOptions } from "../agent.js";
 import type { WorktreeInfo } from "../git.js";
 import { getHeadHash } from "../git.js";
 import {
@@ -31,6 +31,7 @@ function sleep(ms: number): Promise<void> {
 
 export async function runBuild(
   maxIterations: number,
+  config: AgentConfig,
   options: RalphOptions,
   worktreeInfo?: WorktreeInfo,
 ): Promise<void> {
@@ -70,7 +71,6 @@ export async function runBuild(
   }
 
   const startHash = await getHeadHash();
-  const config = validateAgent(options.agent);
   const startTime = Date.now();
   let iteration = 0;
 
