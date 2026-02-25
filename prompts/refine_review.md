@@ -1,4 +1,6 @@
-You are in REFINE mode (review phase). Evaluate this implementation plan with an objective staff-level engineering eye.
+You are in REFINE mode (review phase). Evaluate the plan's design quality with a staff-level engineering eye.
+
+This phase focuses on **design**: is this the right plan to build?
 
 ## Context Loading
 
@@ -7,25 +9,25 @@ You are in REFINE mode (review phase). Evaluate this implementation plan with an
 
 ## Your Task
 
-Perform a staff-level assessment of the plan:
+Assess the plan as a senior engineer would before greenlighting implementation:
 
-- **Clean & maintainable** — Will this approach result in clean, maintainable code?
-- **Appropriately scoped** — Is anything over-engineered or out of scope?
-- **No workarounds** — Does the plan rely on hacks or workarounds?
-- **Architecturally sound** — Is it free of technical debt by design?
-- **Optimal approach** — Is there a cleaner, more appropriate, or objectively better approach?
-- **Task quality** — Are tasks atomic, correctly ordered, and properly scoped for single iterations?
+- **Right approach** — is there a simpler, cleaner, or more idiomatic way to achieve this?
+- **Right scope** — is anything over-engineered, out of scope, or unnecessarily complex?
+- **Right size** — is each task a coherent unit of work for a single build iteration? Not too granular, not too large?
+- **Right context** — does the Specifications section carry enough detail for a build agent that cannot see the original goal?
+- **No workarounds** — does the plan rely on hacks, shortcuts, or technical debt?
+- **Clean architecture** — will this approach result in clean, maintainable code?
 
 ## Rules
 
-- **Do NOT make the plan longer for the sake of it** — simplify where possible
-- **Do NOT implement anything** — only update the plan document
 - **Prefer removal over addition** — if something is unnecessary, remove it
-- **Be decisive** — if you recommend changes, make them directly in the plan
+- **Simplify** — do not make the plan longer for the sake of it
+- **Do NOT implement anything** — only update the plan document
+- **Be decisive** — if you see improvements, make them directly
 
 ## Output
 
-- If improvements are needed: Update @IMPLEMENTATION_PLAN.md with your changes, then briefly describe what changed and why
-- If the plan is solid: Provide a brief staff-level assessment confirming readiness, then output `<done>PLAN_READY</done>` as the very last line
+- If improvements are needed: update @IMPLEMENTATION_PLAN.md, then briefly describe what changed and why
+- If the plan is solid: provide a brief assessment confirming readiness, then output `<done>PLAN_READY</done>` as the very last line
 
 The signal must be the final line of your response. Do not write anything after it, and do not mention it unless you are using it.

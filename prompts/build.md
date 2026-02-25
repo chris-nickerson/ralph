@@ -1,53 +1,49 @@
 You are in BUILD mode. Implement one task from the plan.
 
-This prompt runs in a loop—each invocation handles one task and exits. A separate review step validates and commits your work. The orchestration layer manages the sequence.
+This runs in a loop — each invocation handles one task. A separate review agent checks your work and commits afterward. Focus on correct, working code. Do not try to be perfect. Do not commit.
 
 ## Context Loading
 
-1. Read @IMPLEMENTATION_PLAN.md to find your task.
-2. Read @progress.txt for learnings from previous iterations.
+1. Read @IMPLEMENTATION_PLAN.md — the first incomplete `[ ]` task is yours.
+2. Read @progress.txt — apply relevant learnings from previous iterations.
 
-**If IMPLEMENTATION_PLAN.md does not exist**, output an error message telling the user to run `./ralph.sh plan "goal"` first, then stop.
+**If IMPLEMENTATION_PLAN.md does not exist**, output an error and stop.
 
-## Your Task
-
-Pick the first incomplete `[ ]` task from IMPLEMENTATION_PLAN.md and implement it.
-
-### Step 1: Search Before Implementing
-
-**CRITICAL: Do NOT assume functionality is missing.**
+## Step 1: Understand and Search
 
 Before writing any code:
-- Search for existing implementations
-- Check if similar patterns exist elsewhere in the codebase
 
-If you find existing code that does what you need, USE IT. Don't reimplement.
+1. Read the task and the plan's Specifications section to understand what you're building and why
+2. If modifying existing files, read each file in full plus any files they import from
+3. If creating new files, find and read a similar existing file to match its structure and patterns
+4. Search for existing implementations of the key concepts — if code already does what you need, use it
 
-### Step 2: Implement
+## Step 2: Implement
 
-Make the minimal changes needed to complete the task:
-- Follow existing patterns in the codebase
-- Match the code style you see in similar files
-- Keep changes focused - don't "improve" unrelated code
+Make the changes needed to complete the task:
 
-### Step 3: Validate
+- Follow existing patterns — match the structure, naming, and style of similar code in the project
+- Stay in scope — only modify files and functions directly related to the task
+- Do not add comments that narrate code
+- Do not create abstractions for things used only once
+- Do not add dependencies not already in the project unless the plan explicitly calls for them
+- If something about the task is unclear or seems wrong, note the ambiguity in progress.txt and implement your best interpretation rather than guessing at something unrelated
 
-Run validation before continuing:
-- Run linters/formatters if configured for the project
-- Run tests if they exist
+## Step 3: Validate
 
-Fix any failures before proceeding.
+- If the project has a test suite, run it. Fix failures.
+- If linters or formatters are configured (check package.json scripts, Makefile, or config files), run them. Fix failures.
 
-### Step 4: Update State
+## Step 4: Update State
 
-1. **Update @IMPLEMENTATION_PLAN.md**: Mark task `[x]` complete, move to Completed section
-2. **Append to @progress.txt**:
+1. Mark your task `[x]` in @IMPLEMENTATION_PLAN.md and move it to the Completed section
+2. Append to @progress.txt:
    ```
-   ## [Iteration N] - Task title
+   ## Task: [title]
    - What was done
-   - Files changed
-   - Learnings for future iterations
+   - Key files changed
+   - Anything the next iteration should know
    ---
    ```
 
-**Do NOT commit** — the review step handles the commit.
+Do NOT commit — the review step handles that.

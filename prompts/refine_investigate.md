@@ -1,4 +1,6 @@
-You are in REFINE mode (investigation phase). Critically investigate the implementation plan to ensure it is rock solid before implementation begins.
+You are in REFINE mode (investigation phase). Verify the implementation plan against the actual codebase.
+
+This phase focuses on **facts**: does the plan accurately reflect reality?
 
 ## Context Loading
 
@@ -7,27 +9,28 @@ You are in REFINE mode (investigation phase). Critically investigate the impleme
 
 ## Your Task
 
-Search the codebase thoroughly, then evaluate the plan against reality:
+Search the codebase and verify:
 
-- Are there gaps or missing considerations?
-- Are file paths and references accurate?
-- Are there existing patterns, utilities, or code the plan should leverage?
-- Are task dependencies correctly ordered?
-- Is every task actually necessary and correctly scoped for one build iteration?
-- Are there implicit assumptions that should be made explicit?
-- Does the plan account for edge cases that matter?
+- **File paths** — do referenced files and directories exist? For new files, do parent directories exist?
+- **Code references** — are references to existing functions, classes, patterns, and APIs accurate?
+- **Dependencies** — are required libraries, tools, or services available?
+- **Task ordering** — does each task have what it needs from previous tasks?
+- **Gaps** — are there missing steps that would cause the build agent to get stuck?
+- **Existing code** — does the plan leverage what already exists, or does it reinvent things?
+
+A separate build agent executes each task in isolation with no memory between tasks. Each task must be self-sufficient — enough context to implement without seeing the original goal.
 
 ## Rules
 
-- **Do NOT make the plan longer for the sake of it** — focus on correctness and completeness
+- **Verify by searching, not by assuming** — navigate to file paths, read referenced code, confirm patterns exist
+- **Do NOT make the plan longer for the sake of it** — fix inaccuracies, don't add padding
 - **Do NOT implement anything** — only update the plan document
-- **Search the codebase** — validate assumptions against actual code
-- **Be specific** — if you find an issue, fix it directly in the plan
-- **Keep tasks atomic** — each task must be completable in one build iteration
+- **Keep tasks atomic** — each must be completable in one build iteration
+- **Be specific** — when you find an issue, fix it directly in the plan
 
 ## Output
 
-- If you find issues: Update @IMPLEMENTATION_PLAN.md with corrections, then briefly describe what changed
-- If the plan is solid: Briefly explain why no changes are needed, then output `<done>PLAN_READY</done>` as the very last line
+- If you find issues: update @IMPLEMENTATION_PLAN.md with corrections, then briefly describe what changed
+- If the plan is solid: briefly explain why, then output `<done>PLAN_READY</done>` as the very last line
 
 The signal must be the final line of your response. Do not write anything after it, and do not mention it unless you are using it.

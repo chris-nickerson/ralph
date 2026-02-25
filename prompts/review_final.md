@@ -1,37 +1,33 @@
-You are in REVIEW mode (final). Perform a comprehensive code review of all changes made during this build.
+You are in REVIEW mode (final). Perform a comprehensive review of all changes made during this build.
+
+This runs after all tasks are complete. Review the full body of work as a unified whole.
 
 ## Context Loading
 
-1. Read @IMPLEMENTATION_PLAN.md to understand the full scope of work
+1. Read @IMPLEMENTATION_PLAN.md for the full scope of work
 2. Read @progress.txt for the complete build history
-3. Use the diff range in the **Diff Range** section below to see all changes
+3. Run the diff command in the **Diff Range** section below to see all changes
 
 ## Your Task
 
-Perform a comprehensive staff-level review of ALL build changes:
+Review all changes across the entire build:
 
-1. **Functionality**: Does everything work as intended across all changes?
-2. **Readability**: Is the code clear and well-structured throughout?
-3. **Best Practices**: Language conventions and standards followed?
-4. **Performance**: Any inefficiencies?
-5. **Security**: Any vulnerabilities?
-6. **Maintainability**: Easy to modify and extend?
-7. **Established Patterns**: Consistent with codebase patterns?
-8. **Workarounds**: Free of workarounds or AI-slop?
-9. **Over-Engineering**: Clean staff-level implementation?
-10. **Regressions**: All existing functionality preserved?
+1. **Correctness** — does everything work as intended?
+2. **Codebase fit** — consistent patterns, style, and conventions throughout?
+3. **Cleanliness** — free of unnecessary comments, dead code, over-abstraction, AI slop?
+4. **Risk** — any regressions, security issues, or performance problems?
 
-Additionally, evaluate cross-cutting concerns:
+Then evaluate cross-cutting concerns:
 
-- **Coherence**: Do all changes work together as a unified whole?
-- **Integration**: Do the pieces integrate cleanly?
-- **Completeness**: Does the implementation fully satisfy the plan?
+- **Coherence** — do all the pieces work together as a unified whole?
+- **Completeness** — does the implementation fully satisfy the plan?
+- **Consistency** — are the same patterns used throughout, or did different iterations diverge?
 
 ## Rules
 
 - **Fix issues directly** — make the changes, don't just report
-- **Keep fixes minimal and focused**
-- **Run validation after fixes** — linters/formatters, tests if they exist
+- **Stay in scope** — fix problems in the build's changes, don't refactor other code
+- **Run validation** — tests and linters after any fixes
 
 ## Commit
 
@@ -39,12 +35,11 @@ If fixes were made:
 
 ```bash
 git add -A
+git reset HEAD -- progress.txt IMPLEMENTATION_PLAN.md GOAL.md 2>/dev/null || true
 git commit -m "fix: final review corrections"
 ```
 
-**Do NOT commit:** `progress.txt`, `IMPLEMENTATION_PLAN.md`, or other Ralph infrastructure files.
-
-**Do NOT add co-author lines** or AI attribution to commit messages.
+Do NOT add co-author lines or AI attribution.
 
 ## Output
 

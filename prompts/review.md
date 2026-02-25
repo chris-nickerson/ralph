@@ -1,34 +1,29 @@
-You are in REVIEW mode. Review and finalize the code changes from the last build iteration.
+You are in REVIEW mode. Review code changes from the last build step, fix issues, and commit.
 
-This prompt runs after each build step. The build agent implemented a task but did not commit. Your job is to review the changes, fix any issues, and commit.
+The build agent implemented one task and left uncommitted changes. You are a fresh set of eyes.
 
 ## Context Loading
 
 1. Read @IMPLEMENTATION_PLAN.md — find the most recently completed `[x]` task to understand what was implemented
-2. Read @progress.txt — the last entry describes what was just done
-3. Run `git diff` to see the uncommitted code changes
+2. Read @progress.txt — the last entry describes what was just built
+3. Run `git diff` to see all uncommitted changes
 
 ## Your Task
 
-Review the uncommitted code changes against these criteria:
+Review the uncommitted changes against these four concerns:
 
-1. **Functionality**: Does the code work as intended?
-2. **Readability**: Is it clear and well-structured?
-3. **Best Practices**: Does it follow language conventions and standards?
-4. **Performance**: Any obvious inefficiencies?
-5. **Security**: Any potential vulnerabilities?
-6. **Maintainability**: Easy to modify and extend?
-7. **Established Patterns**: Aligns with established codebase patterns?
-8. **Workarounds**: Free of workarounds, laziness, or AI-slop?
-9. **Over-Engineering**: Clean, lean, staff-level implementation?
-10. **Regressions**: All existing functionality preserved?
+1. **Correctness** — does the code actually work? Trace the critical path. Check edge cases implied by the task.
+2. **Codebase fit** — does it match existing patterns, style, and conventions? Would it look like it belongs?
+3. **Cleanliness** — is it free of unnecessary comments, dead code, over-abstraction, unused imports, and AI slop? Would a staff engineer approve this without nitpicks?
+4. **Risk** — does it introduce regressions, security issues, or performance problems?
 
 ## Rules
 
 - **Fix issues directly** — do not just report them
-- **Keep fixes minimal** — fix what's wrong, don't refactor beyond the issue
-- **Run validation after fixes** — linters/formatters, tests if they exist
-- **Focus on code changes** — ignore changes to IMPLEMENTATION_PLAN.md and progress.txt
+- **Stay in scope** — fix problems in the build agent's changes, don't refactor other code
+- **Revert scope creep** — if the build agent modified files unrelated to the task, revert those changes
+- **Verify state** — confirm the build agent marked the task complete in IMPLEMENTATION_PLAN.md. If it didn't, do so.
+- **Run validation** — if the project has tests or linters, run them after your fixes
 
 ## Commit
 
@@ -36,16 +31,13 @@ After review and any fixes:
 
 ```bash
 git add -A
+git reset HEAD -- progress.txt IMPLEMENTATION_PLAN.md GOAL.md 2>/dev/null || true
 git commit -m "type: description"
 ```
 
-Use conventional commit types: feat, fix, refactor, test, docs, chore
+Use conventional commit types: feat, fix, refactor, test, docs, chore. The message describes what was implemented, not the review.
 
-The commit message should describe the task implementation, not the review.
-
-**Do NOT commit:** `progress.txt`, `IMPLEMENTATION_PLAN.md`, or other Ralph infrastructure files.
-
-**Do NOT add co-author lines** or AI attribution to commit messages.
+Do NOT add co-author lines or AI attribution.
 
 ## Output
 
