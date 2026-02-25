@@ -54,6 +54,7 @@ export async function runRefine(
   const startTime = Date.now();
   let iteration = 0;
   let consecutiveReady = 0;
+  let consecutiveFailures = 0;
   let phase: "investigate" | "review" = "investigate";
 
   while (true) {
@@ -71,7 +72,7 @@ export async function runRefine(
 
     const iterStart = Date.now();
     const prompt = await loadRefinePrompt(phase);
-    const { output } = await runAgent(
+    const { output, exitCode } = await runAgent(
       prompt,
       config,
       options,
@@ -82,6 +83,19 @@ export async function runRefine(
     const iterElapsed = Math.floor((Date.now() - iterStart) / 1000);
     console.log("");
     console.log(`${dim(`  iteration elapsed: ${formatDuration(iterElapsed)}`)}`);
+
+    if (exitCode !== 0) {
+      consecutiveFailures++;
+      consecutiveReady = 0;
+      if (consecutiveFailures >= 3) {
+        printError("agent failed 3 times consecutively; stopping");
+        process.exit(1);
+      }
+      phase = phase === "investigate" ? "review" : "investigate";
+      await sleep(1000);
+      continue;
+    }
+    consecutiveFailures = 0;
 
     const lastLines = output.split("\n").slice(-5).join("\n");
     if (lastLines.includes("<done>PLAN_READY</done>")) {

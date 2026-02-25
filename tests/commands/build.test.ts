@@ -261,4 +261,44 @@ describe("runBuild", () => {
     expect(mocks.printKv).toHaveBeenCalledWith("review", "off");
     expect(mocks.printKv).toHaveBeenCalledWith("commit", "off");
   });
+
+  it("skips review when agent fails and continues to next iteration", async () => {
+    vi.useFakeTimers();
+
+    mocks.countTasks.mockResolvedValue(2);
+    mocks.runAgent
+      .mockResolvedValueOnce({ output: "", exitCode: 1 })
+      .mockResolvedValueOnce({ output: "done", exitCode: 0 });
+
+    const promise = runBuild(2, agentConfig, defaultOptions);
+    promise.catch(() => {});
+
+    await vi.advanceTimersByTimeAsync(1000);
+    await vi.advanceTimersByTimeAsync(1000);
+
+    await expect(promise).rejects.toThrow("EXIT");
+
+    expect(mocks.runAgent).toHaveBeenCalledTimes(3);
+    expect(mocks.buildReviewPrompt).toHaveBeenCalledTimes(1);
+  });
+
+  it("exits after 3 consecutive agent failures", async () => {
+    vi.useFakeTimers();
+
+    mocks.countTasks.mockResolvedValue(2);
+    mocks.runAgent.mockResolvedValue({ output: "", exitCode: 1 });
+
+    const promise = runBuild(10, agentConfig, defaultOptions);
+    promise.catch(() => {});
+
+    await vi.advanceTimersByTimeAsync(1000);
+    await vi.advanceTimersByTimeAsync(1000);
+    await vi.advanceTimersByTimeAsync(1000);
+
+    await expect(promise).rejects.toThrow("EXIT");
+
+    expect(exitSpy).toHaveBeenCalledWith(1);
+    expect(mocks.runAgent).toHaveBeenCalledTimes(3);
+    expect(mocks.printError).toHaveBeenCalledWith("agent failed 3 times consecutively; stopping");
+  });
 });

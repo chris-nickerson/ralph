@@ -205,4 +205,42 @@ describe("runRefine", () => {
     await expect(promise).rejects.toThrow("EXIT");
     expect(mocks.printWorktreeNext).toHaveBeenCalledWith("resume", worktreeInfo, "ralph", "refine");
   });
+
+  it("skips ready detection when agent fails and continues", async () => {
+    vi.useFakeTimers();
+
+    mocks.runAgent
+      .mockResolvedValueOnce({ output: "", exitCode: 1 })
+      .mockResolvedValueOnce({ output: "lines\n<done>PLAN_READY</done>\n", exitCode: 0 })
+      .mockResolvedValueOnce({ output: "lines\n<done>PLAN_READY</done>\n", exitCode: 0 });
+
+    const promise = runRefine(10, agentConfig, defaultOptions);
+    promise.catch(() => {});
+
+    await vi.advanceTimersByTimeAsync(1000);
+    await vi.advanceTimersByTimeAsync(1000);
+
+    await expect(promise).rejects.toThrow("EXIT");
+    expect(exitSpy).toHaveBeenCalledWith(0);
+    expect(mocks.runAgent).toHaveBeenCalledTimes(3);
+  });
+
+  it("exits after 3 consecutive agent failures", async () => {
+    vi.useFakeTimers();
+
+    mocks.runAgent.mockResolvedValue({ output: "", exitCode: 1 });
+
+    const promise = runRefine(10, agentConfig, defaultOptions);
+    promise.catch(() => {});
+
+    await vi.advanceTimersByTimeAsync(1000);
+    await vi.advanceTimersByTimeAsync(1000);
+    await vi.advanceTimersByTimeAsync(1000);
+
+    await expect(promise).rejects.toThrow("EXIT");
+
+    expect(exitSpy).toHaveBeenCalledWith(1);
+    expect(mocks.runAgent).toHaveBeenCalledTimes(3);
+    expect(mocks.printError).toHaveBeenCalledWith("agent failed 3 times consecutively; stopping");
+  });
 });

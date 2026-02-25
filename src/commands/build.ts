@@ -73,6 +73,7 @@ export async function runBuild(
   const startHash = await getHeadHash();
   const startTime = Date.now();
   let iteration = 0;
+  let consecutiveFailures = 0;
 
   while (true) {
     iteration++;
@@ -92,7 +93,18 @@ export async function runBuild(
     printPhase(iteration, "build", `${taskCount} ${taskWord} remaining`);
 
     const buildPrompt = await buildBuildPrompt(options.noReview, options.noCommit);
-    await runAgent(buildPrompt, config, options, "building", startTime);
+    const { exitCode } = await runAgent(buildPrompt, config, options, "building", startTime);
+
+    if (exitCode !== 0) {
+      consecutiveFailures++;
+      if (consecutiveFailures >= 3) {
+        printError("agent failed 3 times consecutively; stopping");
+        process.exit(1);
+      }
+      await sleep(1000);
+      continue;
+    }
+    consecutiveFailures = 0;
 
     if (!options.noReview) {
       printPhase(iteration, "review");
