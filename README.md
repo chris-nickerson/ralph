@@ -29,13 +29,15 @@ ralph build
 ## Commands
 
 ```bash
-ralph plan "goal"      # Create implementation plan
-ralph plan             # Plan from GOAL.md file
-ralph refine [n]       # Refine plan iteratively (default: 10 iterations)
-ralph build [n]        # Run build loop (default: 10 iterations)
-ralph plan --force     # Skip confirmation prompts
-ralph build -w         # Run build in a git worktree
-ralph update           # Update to latest version
+ralph plan "goal"         # Create implementation plan
+ralph plan                # Plan from GOAL.md file
+ralph refine [n]          # Refine plan iteratively (default: 10 iterations)
+ralph build [n]           # Run build loop (default: 10 iterations)
+ralph plan --force        # Skip confirmation prompts
+ralph build -w            # Run build in a git worktree
+ralph build --no-review   # Build only, skip code review
+ralph build -n            # Keep changes uncommitted
+ralph update              # Update to latest version
 ```
 
 ## Worktrees
@@ -64,6 +66,8 @@ ralph build -a cursor
 2. **Refine mode** iteratively improves the plan by alternating between investigation (find gaps) and review (staff-level assessment) until both agree it's ready
 3. **Build mode** runs two phases per task: a build agent implements, then a review agent performs a staff-level code review, fixes issues, and commits. A final comprehensive review runs after all tasks complete
 4. Build exits when all tasks are complete or max iterations reached
+
+Use `--no-review` to skip review phases (build agent implements and commits directly). Use `--no-commit` to leave all changes in the working tree. These compose: `--no-review --no-commit` gives raw build-only iterations with no commits.
 
 ## Files
 

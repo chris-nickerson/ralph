@@ -213,11 +213,13 @@ ${BOLD}USAGE${RESET}
     ${SCRIPT_NAME} update               Update to latest version
 
 ${BOLD}OPTIONS${RESET}
-    -a, --agent     Agent to use: claude, codex, cursor ${DIM}(default: claude)${RESET}
-    -d, --debug     Run agent in foreground (see output in real-time)
-    -f, --force     Skip confirmation prompts
-    -h, --help      Show this help
-    -w, --worktree  Run in a git worktree ${DIM}(isolates changes)${RESET}
+    -a, --agent       Agent to use: claude, codex, cursor ${DIM}(default: claude)${RESET}
+    -d, --debug       Run agent in foreground (see output in real-time)
+    -f, --force       Skip confirmation prompts
+    -h, --help        Show this help
+    -n, --no-commit   Skip commits ${DIM}(leave changes in working tree)${RESET}
+        --no-review   Skip review phases ${DIM}(build only, no code review)${RESET}
+    -w, --worktree    Run in a git worktree ${DIM}(isolates changes)${RESET}
 
 ${BOLD}EXAMPLES${RESET}
     ${SCRIPT_NAME} plan "Add user authentication"
@@ -244,6 +246,8 @@ EOF
 DEBUG="false"
 FORCE="false"
 WORKTREE="false"
+NO_COMMIT="false"
+NO_REVIEW="false"
 MODE=""
 GOAL=""
 AGENT_ARG=""
@@ -256,6 +260,8 @@ while [[ $# -gt 0 ]]; do
     -a|--agent) AGENT_ARG="$2"; shift 2 ;;
     -d|--debug) DEBUG="true"; shift ;;
     -f|--force) FORCE="true"; shift ;;
+    -n|--no-commit) NO_COMMIT="true"; shift ;;
+    --no-review) NO_REVIEW="true"; shift ;;
     -w|--worktree) WORKTREE="true"; shift ;;
     update)
       INSTALL_SCRIPT=$(curl -fsSL "https://raw.githubusercontent.com/chris-nickerson/ralph/main/install.sh") \
@@ -640,6 +646,8 @@ run_build() {
   fi
   print_kv "tasks" "${task_count} remaining"
   print_kv "limit" "${MAX_ITERATIONS} iterations"
+  [[ "$NO_REVIEW" == "true" ]] && print_kv "review" "off"
+  [[ "$NO_COMMIT" == "true" ]] && print_kv "commit" "off"
   
   if [[ "$task_count" -eq 0 ]]; then
     echo ""
@@ -650,6 +658,8 @@ run_build() {
     print_worktree_next
     exit 0
   fi
+  
+  local NO_COMMIT_OVERRIDE=$'\n\n## Override: No Commits\n\nDo NOT run `git add` or `git commit`. Leave all changes in the working tree. Skip the Commit section above entirely.'
   
   # Capture starting point for final review
   local start_hash
@@ -671,18 +681,52 @@ run_build() {
     local iter_start
     iter_start=$(date +%s)
     
-    # Phase 1: Build (implement task, do not commit)
+    # Phase 1: Build
     task_count=$(count_tasks)
     local task_word="tasks"
     [[ "$task_count" -eq 1 ]] && task_word="task"
     print_phase "$iteration" "build" "${task_count} ${task_word} remaining"
     
-    run_agent "$(cat "$PROMPT_BUILD")" "building" "$start_time" || true
+    local build_prompt
+    build_prompt=$(cat "$PROMPT_BUILD")
+    if [[ "$NO_REVIEW" == "true" ]]; then
+      if [[ "$NO_COMMIT" == "true" ]]; then
+        build_prompt+=$'\n\n## Override: No Commits\n\nThere is no review step. Do NOT run `git add` or `git commit`. Leave all changes in the working tree.'
+      else
+        build_prompt+=$'\n\n'"$(cat <<'OVERRIDE'
+## Override: Commit
+
+There is no review step. After implementing and validating, commit your changes:
+
+```bash
+git add -A
+git commit -m "type: description"
+```
+
+Use conventional commit types: feat, fix, refactor, test, docs, chore
+
+The commit message should describe what was implemented.
+
+**Do NOT commit:** `progress.txt`, `IMPLEMENTATION_PLAN.md`, or other Ralph infrastructure files.
+
+**Do NOT add co-author lines** or AI attribution to commit messages.
+OVERRIDE
+)"
+      fi
+    fi
+    run_agent "$build_prompt" "building" "$start_time" || true
     
-    # Phase 2: Review (review changes, fix issues, commit)
-    print_phase "$iteration" "review"
-    
-    run_agent "$(cat "$PROMPT_REVIEW")" "reviewing" "$start_time" || true
+    # Phase 2: Review
+    if [[ "$NO_REVIEW" != "true" ]]; then
+      print_phase "$iteration" "review"
+      
+      local review_prompt
+      review_prompt=$(cat "$PROMPT_REVIEW")
+      if [[ "$NO_COMMIT" == "true" ]]; then
+        review_prompt+="$NO_COMMIT_OVERRIDE"
+      fi
+      run_agent "$review_prompt" "reviewing" "$start_time" || true
+    fi
     
     local iter_end
     iter_end=$(date +%s)
@@ -694,16 +738,25 @@ run_build() {
     # Check for completion via task count
     task_count=$(count_tasks)
     if [[ "$task_count" -eq 0 ]]; then
-      # Final comprehensive review of all changes
-      print_phase "$iteration" "final review"
-      
-      local final_prompt
-      final_prompt=$(cat "$PROMPT_REVIEW_FINAL")
-      if [[ -n "$start_hash" ]]; then
-        final_prompt+=$'\n\n## Diff Range\n\n'
-        final_prompt+="Review all changes from the start of this build: \`git diff ${start_hash}..HEAD\`"
+      if [[ "$NO_REVIEW" != "true" ]]; then
+        # Final comprehensive review of all changes
+        print_phase "$iteration" "final review"
+        
+        local final_prompt
+        final_prompt=$(cat "$PROMPT_REVIEW_FINAL")
+        if [[ -n "$start_hash" ]]; then
+          final_prompt+=$'\n\n## Diff Range\n\n'
+          if [[ "$NO_COMMIT" == "true" ]]; then
+            final_prompt+="Review all changes from the start of this build: \`git diff ${start_hash}\`"
+          else
+            final_prompt+="Review all changes from the start of this build: \`git diff ${start_hash}..HEAD\`"
+          fi
+        fi
+        if [[ "$NO_COMMIT" == "true" ]]; then
+          final_prompt+="$NO_COMMIT_OVERRIDE"
+        fi
+        run_agent "$final_prompt" "final review" "$start_time" || true
       fi
-      run_agent "$final_prompt" "final review" "$start_time" || true
       
       local end_time
       end_time=$(date +%s)
