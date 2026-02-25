@@ -61,6 +61,7 @@ const defaultOptions: RalphOptions = {
   noCommit: false,
   noReview: false,
   worktree: false,
+  timeout: 0,
 };
 
 const agentConfig = { name: "claude", command: "claude", args: ["-p"] };

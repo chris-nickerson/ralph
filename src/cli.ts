@@ -39,6 +39,7 @@ function makeOptions(cmd: Command): RalphOptions {
     noCommit: opts.commit === false,
     noReview: opts.review === false,
     worktree: opts.worktree ?? false,
+    timeout: parseInt(opts.timeout ?? "0", 10),
   };
 }
 
@@ -63,7 +64,8 @@ program
   .option("-f, --force", "Skip confirmation prompts")
   .option("-n, --no-commit", "Skip commits (leave changes in working tree)")
   .option("--no-review", "Skip review phases (build only, no code review)")
-  .option("-w, --worktree", "Run in a git worktree (isolates changes)");
+  .option("-w, --worktree", "Run in a git worktree (isolates changes)")
+  .option("-t, --timeout <seconds>", "Agent timeout in seconds (0 = none)", "0");
 
 program
   .command("plan [goal]")

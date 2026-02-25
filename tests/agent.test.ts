@@ -60,6 +60,7 @@ describe("runAgent", () => {
     noCommit: false,
     noReview: false,
     worktree: false,
+    timeout: 0,
     ...overrides,
   });
 
@@ -229,5 +230,46 @@ describe("runAgent", () => {
     const result = await resultPromise;
     expect(result.exitCode).toBe(1);
     expect(result.output).toBe("");
+  });
+
+  it("kills child process when timeout fires", async () => {
+    vi.useFakeTimers();
+
+    const mockChild = createMockChild();
+    spawnMock = vi.fn().mockReturnValue(mockChild);
+
+    vi.doMock("node:child_process", () => ({
+      spawn: spawnMock,
+      execFileSync: vi.fn(),
+    }));
+
+    vi.doMock("ora", () => ({
+      default: () => ({
+        start: vi.fn().mockReturnThis(),
+        stop: vi.fn(),
+        set text(_: string) {},
+      }),
+    }));
+
+    const { runAgent } = await import("../src/agent.js");
+
+    const resultPromise = runAgent(
+      "prompt",
+      AGENTS.claude,
+      makeOptions({ timeout: 2 }),
+      "building",
+      Date.now(),
+    );
+
+    await vi.advanceTimersByTimeAsync(2000);
+
+    expect((mockChild as any).kill).toHaveBeenCalled();
+
+    mockChild.emit("close", null);
+
+    const result = await resultPromise;
+    expect(result.exitCode).toBe(1);
+
+    vi.useRealTimers();
   });
 });

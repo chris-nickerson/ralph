@@ -34,6 +34,7 @@ export interface RalphOptions {
   noCommit: boolean;
   noReview: boolean;
   worktree: boolean;
+  timeout: number;
 }
 
 let activeChild: ChildProcess | null = null;
@@ -71,14 +72,15 @@ export async function runAgent(
   startTime: number,
 ): Promise<{ output: string; exitCode: number }> {
   if (options.debug) {
-    return runDebug(prompt, config);
+    return runDebug(prompt, config, options.timeout);
   }
-  return runWithSpinner(prompt, config, activity, startTime);
+  return runWithSpinner(prompt, config, activity, startTime, options.timeout);
 }
 
 function runDebug(
   prompt: string,
   config: AgentConfig,
+  timeout: number,
 ): Promise<{ output: string; exitCode: number }> {
   return new Promise((resolve) => {
     console.log(`${dim(`debug: running ${config.command}...`)}`);
@@ -88,6 +90,15 @@ function runDebug(
       stdio: ["pipe", "pipe", "pipe"],
     });
     activeChild = child;
+
+    let timedOut = false;
+    const killTimer =
+      timeout > 0
+        ? setTimeout(() => {
+            timedOut = true;
+            child.kill();
+          }, timeout * 1000)
+        : undefined;
 
     const chunks: Buffer[] = [];
 
@@ -105,15 +116,21 @@ function runDebug(
     child.stdin?.end();
 
     child.on("close", (code) => {
+      if (killTimer) clearTimeout(killTimer);
       activeChild = null;
       const exitCode = code ?? 1;
       const output = Buffer.concat(chunks).toString("utf-8");
       console.log("");
-      console.log(dim(`debug: exit code ${exitCode}`));
+      if (timedOut) {
+        console.log(dim(`debug: agent timed out after ${formatDuration(timeout)}`));
+      } else {
+        console.log(dim(`debug: exit code ${exitCode}`));
+      }
       resolve({ output, exitCode });
     });
 
     child.on("error", (err) => {
+      if (killTimer) clearTimeout(killTimer);
       activeChild = null;
       console.log("");
       console.log(dim(`debug: error: ${err.message}`));
@@ -127,12 +144,22 @@ function runWithSpinner(
   config: AgentConfig,
   activity: string,
   startTime: number,
+  timeout: number,
 ): Promise<{ output: string; exitCode: number }> {
   return new Promise((resolve) => {
     const child = spawn(config.command, config.args, {
       stdio: ["pipe", "pipe", "pipe"],
     });
     activeChild = child;
+
+    let timedOut = false;
+    const killTimer =
+      timeout > 0
+        ? setTimeout(() => {
+            timedOut = true;
+            child.kill();
+          }, timeout * 1000)
+        : undefined;
 
     const chunks: Buffer[] = [];
 
@@ -161,6 +188,7 @@ function runWithSpinner(
     }, 500);
 
     child.on("close", (code) => {
+      if (killTimer) clearTimeout(killTimer);
       clearInterval(timer);
       spinner.stop();
       activeChild = null;
@@ -172,7 +200,9 @@ function runWithSpinner(
         process.stdout.write(output);
       }
 
-      if (exitCode !== 0) {
+      if (timedOut) {
+        printWarning(`agent timed out after ${formatDuration(timeout)}`);
+      } else if (exitCode !== 0) {
         printWarning(`agent exited with code ${exitCode}`);
         console.log(`  ${dim("Run with --debug for more details")}`);
       } else if (!output) {
@@ -184,6 +214,7 @@ function runWithSpinner(
     });
 
     child.on("error", (err) => {
+      if (killTimer) clearTimeout(killTimer);
       clearInterval(timer);
       spinner.stop();
       activeChild = null;
