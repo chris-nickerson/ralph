@@ -6,7 +6,7 @@ import { hasContent } from "./state.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-export function getPromptsDir(): string {
+function getPromptsDir(): string {
   return join(__dirname, "..", "prompts");
 }
 

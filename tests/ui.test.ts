@@ -72,7 +72,7 @@ describe("confirm", () => {
 
   function makeMockRl() {
     const rl = new EventEmitter();
-    (rl as any).close = vi.fn();
+    (rl as any).close = vi.fn(() => rl.emit("close"));
     mockReadline.createInterface.mockReturnValue(rl);
     return rl;
   }

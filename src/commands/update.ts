@@ -4,7 +4,9 @@ const INSTALL_URL =
   "https://raw.githubusercontent.com/chris-nickerson/ralph/main/install.sh";
 
 export async function runUpdate(): Promise<void> {
-  const res = await fetch(INSTALL_URL);
+  const res = await fetch(INSTALL_URL, {
+    signal: AbortSignal.timeout(30_000),
+  });
   if (!res.ok) {
     process.stderr.write("Update failed: could not download installer\n");
     process.exit(1);

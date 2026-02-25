@@ -151,9 +151,9 @@ export async function confirm(
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   return new Promise<boolean>((resolve) => {
     rl.once("line", (response) => {
-      rl.close();
       const answer = (response.trim() || defaultVal).toLowerCase();
       resolve(answer === "y");
+      rl.close();
     });
     rl.once("close", () => resolve(false));
   });

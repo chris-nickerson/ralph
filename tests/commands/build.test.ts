@@ -283,6 +283,32 @@ describe("runBuild", () => {
     expect(mocks.buildReviewPrompt).toHaveBeenCalledTimes(1);
   });
 
+  it("resets consecutive failure count after a successful iteration", async () => {
+    vi.useFakeTimers();
+
+    mocks.countTasks.mockResolvedValue(2);
+    const opts = { ...defaultOptions, noReview: true };
+
+    mocks.runAgent
+      .mockResolvedValueOnce({ output: "", exitCode: 1 })
+      .mockResolvedValueOnce({ output: "ok", exitCode: 0 })
+      .mockResolvedValueOnce({ output: "", exitCode: 1 })
+      .mockResolvedValueOnce({ output: "ok", exitCode: 0 })
+      .mockResolvedValueOnce({ output: "", exitCode: 1 });
+
+    const promise = runBuild(5, agentConfig, opts);
+    promise.catch(() => {});
+
+    for (let i = 0; i < 5; i++) await vi.advanceTimersByTimeAsync(1000);
+
+    await expect(promise).rejects.toThrow("EXIT");
+
+    expect(mocks.printError).not.toHaveBeenCalledWith(
+      "agent failed 3 times consecutively; stopping",
+    );
+    expect(exitSpy).toHaveBeenCalledWith(0);
+  });
+
   it("exits after 3 consecutive agent failures", async () => {
     vi.useFakeTimers();
 

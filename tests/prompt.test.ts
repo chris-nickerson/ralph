@@ -140,11 +140,11 @@ describe("buildFinalReviewPrompt", () => {
 describe("loadRefinePrompt", () => {
   it("loads investigate prompt", async () => {
     const prompt = await loadRefinePrompt("investigate");
-    expect(prompt.length).toBeGreaterThan(0);
+    expect(prompt).toContain("investigation phase");
   });
 
   it("loads review prompt", async () => {
     const prompt = await loadRefinePrompt("review");
-    expect(prompt.length).toBeGreaterThan(0);
+    expect(prompt).toContain("review phase");
   });
 });
