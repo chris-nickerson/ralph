@@ -15,6 +15,7 @@ export async function runUpdate(): Promise<void> {
 
   const exitCode = await new Promise<number>((resolve) => {
     child.on("close", (code) => resolve(code ?? 1));
+    child.on("error", () => resolve(1));
   });
 
   process.exit(exitCode);

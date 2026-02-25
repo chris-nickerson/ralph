@@ -143,8 +143,7 @@ export async function confirm(
   if (force) return true;
 
   if (!process.stdin.isTTY) {
-    printError("non-interactive mode; use --force to proceed");
-    return false;
+    throw new Error("non-interactive mode; use --force to proceed");
   }
 
   const hint = defaultVal === "y" ? "[Y/n]" : "[y/N]";
@@ -157,5 +156,6 @@ export async function confirm(
       const answer = (response.trim() || defaultVal).toLowerCase();
       resolve(answer === "y");
     });
+    rl.once("close", () => resolve(false));
   });
 }
