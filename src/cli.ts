@@ -32,6 +32,10 @@ process.on("SIGTERM", onSignal);
 
 function makeOptions(cmd: Command): RalphOptions {
   const opts = cmd.optsWithGlobals();
+  const timeoutStr = opts.timeout ?? "0";
+  if (!/^\d+$/.test(timeoutStr)) {
+    throw new Error("--timeout must be a non-negative integer");
+  }
   return {
     agent: opts.agent ?? "claude",
     debug: opts.debug ?? false,
@@ -39,7 +43,7 @@ function makeOptions(cmd: Command): RalphOptions {
     noCommit: opts.commit === false,
     noReview: opts.review === false,
     worktree: opts.worktree ?? false,
-    timeout: parseInt(opts.timeout ?? "0", 10),
+    timeout: parseInt(timeoutStr, 10),
   };
 }
 

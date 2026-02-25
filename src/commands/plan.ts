@@ -70,25 +70,27 @@ export async function runPlan(
 
   const elapsed = Math.floor((Date.now() - startTime) / 1000);
 
-  if (await hasContent("IMPLEMENTATION_PLAN.md")) {
-    const taskCount = await countTasks();
-    const taskWord = taskCount === 1 ? "task" : "tasks";
+  if (!(await hasContent("IMPLEMENTATION_PLAN.md"))) {
+    process.exit(1);
+  }
 
-    console.log("");
-    console.log(dim(line()));
-    console.log(
-      `  ${green(SYM_CHECK)} ${dim(SYM_DOT)} plan created ${dim(SYM_DOT)} ${taskCount} ${taskWord} ${dim(SYM_DOT)} ${formatDuration(elapsed)}`,
-    );
-    console.log(dim(line()));
-    console.log("");
+  const taskCount = await countTasks();
+  const taskWord = taskCount === 1 ? "task" : "tasks";
 
-    if (worktreeInfo) {
-      printWorktreeNext("plan", worktreeInfo, SCRIPT_NAME, "plan");
-    } else {
-      console.log(`  ${dim("Refine:")}  ${SCRIPT_NAME} refine`);
-      console.log(`  ${dim("Review:")}  cat IMPLEMENTATION_PLAN.md`);
-      console.log(`  ${dim("Build:")}   ${SCRIPT_NAME} build`);
-      console.log("");
-    }
+  console.log("");
+  console.log(dim(line()));
+  console.log(
+    `  ${green(SYM_CHECK)} ${dim(SYM_DOT)} plan created ${dim(SYM_DOT)} ${taskCount} ${taskWord} ${dim(SYM_DOT)} ${formatDuration(elapsed)}`,
+  );
+  console.log(dim(line()));
+  console.log("");
+
+  if (worktreeInfo) {
+    printWorktreeNext("plan", worktreeInfo, SCRIPT_NAME, "plan");
+  } else {
+    console.log(`  ${dim("Refine:")}  ${SCRIPT_NAME} refine`);
+    console.log(`  ${dim("Review:")}  cat IMPLEMENTATION_PLAN.md`);
+    console.log(`  ${dim("Build:")}   ${SCRIPT_NAME} build`);
+    console.log("");
   }
 }

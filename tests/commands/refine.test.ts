@@ -226,6 +226,27 @@ describe("runRefine", () => {
     expect(mocks.runAgent).toHaveBeenCalledTimes(3);
   });
 
+  it("resets consecutive ready count on agent failure", async () => {
+    vi.useFakeTimers();
+
+    mocks.runAgent
+      .mockResolvedValueOnce({ output: "<done>PLAN_READY</done>\n", exitCode: 0 })
+      .mockResolvedValueOnce({ output: "", exitCode: 1 })
+      .mockResolvedValueOnce({ output: "<done>PLAN_READY</done>\n", exitCode: 0 })
+      .mockResolvedValueOnce({ output: "<done>PLAN_READY</done>\n", exitCode: 0 });
+
+    const promise = runRefine(10, agentConfig, defaultOptions);
+    promise.catch(() => {});
+
+    for (let i = 0; i < 4; i++) {
+      await vi.advanceTimersByTimeAsync(1000);
+    }
+
+    await expect(promise).rejects.toThrow("EXIT");
+    expect(exitSpy).toHaveBeenCalledWith(0);
+    expect(mocks.runAgent).toHaveBeenCalledTimes(4);
+  });
+
   it("exits after 3 consecutive agent failures", async () => {
     vi.useFakeTimers();
 

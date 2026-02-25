@@ -92,6 +92,7 @@ function runDebug(
     activeChild = child;
 
     let timedOut = false;
+    let settled = false;
     const killTimer =
       timeout > 0
         ? setTimeout(() => {
@@ -116,6 +117,8 @@ function runDebug(
     child.stdin?.end();
 
     child.on("close", (code) => {
+      if (settled) return;
+      settled = true;
       if (killTimer) clearTimeout(killTimer);
       activeChild = null;
       const exitCode = code ?? 1;
@@ -130,6 +133,8 @@ function runDebug(
     });
 
     child.on("error", (err) => {
+      if (settled) return;
+      settled = true;
       if (killTimer) clearTimeout(killTimer);
       activeChild = null;
       console.log("");
@@ -153,6 +158,7 @@ function runWithSpinner(
     activeChild = child;
 
     let timedOut = false;
+    let settled = false;
     const killTimer =
       timeout > 0
         ? setTimeout(() => {
@@ -188,6 +194,8 @@ function runWithSpinner(
     }, 500);
 
     child.on("close", (code) => {
+      if (settled) return;
+      settled = true;
       if (killTimer) clearTimeout(killTimer);
       clearInterval(timer);
       spinner.stop();
@@ -214,6 +222,8 @@ function runWithSpinner(
     });
 
     child.on("error", (err) => {
+      if (settled) return;
+      settled = true;
       if (killTimer) clearTimeout(killTimer);
       clearInterval(timer);
       spinner.stop();

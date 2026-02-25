@@ -67,7 +67,14 @@ describe("runPlan", () => {
     }) as never);
 
     mocks.runAgent.mockResolvedValue({ output: "done", exitCode: 0 });
-    mocks.hasContent.mockResolvedValue(false);
+    let planCheckCount = 0;
+    mocks.hasContent.mockImplementation(async (p: string) => {
+      if (p === "IMPLEMENTATION_PLAN.md") {
+        planCheckCount++;
+        return planCheckCount > 1;
+      }
+      return false;
+    });
     mocks.countTasks.mockResolvedValue(0);
     mocks.clearStateFiles.mockResolvedValue(undefined);
     mocks.buildPlanPrompt.mockResolvedValue("plan prompt");
@@ -176,6 +183,15 @@ describe("runPlan", () => {
     consoleSpy.mockRestore();
 
     expect(mocks.printWorktreeNext).toHaveBeenCalledWith("plan", worktreeInfo, "ralph", "plan");
+  });
+
+  it("exits with code 1 when no plan is created", async () => {
+    mocks.hasContent.mockResolvedValue(false);
+    mocks.runAgent.mockResolvedValue({ output: "", exitCode: 1 });
+
+    await expect(runPlan("goal", agentConfig, defaultOptions)).rejects.toThrow("EXIT");
+    expect(exitSpy).toHaveBeenCalledWith(1);
+    expect(mocks.countTasks).not.toHaveBeenCalled();
   });
 
   it("prints header with planning mode", async () => {

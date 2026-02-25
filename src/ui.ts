@@ -101,7 +101,7 @@ export function printWorktreeNext(
   worktreeInfo: WorktreeInfo,
   scriptName: string,
   mode: string,
-): boolean {
+): void {
   const reldir = `../${worktreeInfo.name}`;
   printKv("branch", worktreeInfo.branch);
 
@@ -123,7 +123,6 @@ export function printWorktreeNext(
 
   printKv("cleanup", `git worktree remove --force ${reldir}`);
   console.log("");
-  return true;
 }
 
 export function printError(msg: string): void {
