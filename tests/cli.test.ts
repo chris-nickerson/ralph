@@ -1,5 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { execFile as execFileCb } from "node:child_process";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { promisify } from "node:util";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,12 +12,13 @@ const cliPath = join(__dirname, "..", "src", "cli.ts");
 
 async function runCli(
   args: string[],
+  cwd?: string,
 ): Promise<{ stdout: string; stderr: string; code: number }> {
   try {
     const { stdout, stderr } = await execFile(
       "npx",
       ["tsx", cliPath, ...args],
-      { cwd: join(__dirname, ".."), timeout: 10000 },
+      { cwd: cwd ?? join(__dirname, ".."), timeout: 10000 },
     );
     return { stdout, stderr, code: 0 };
   } catch (err: any) {
@@ -90,4 +93,26 @@ describe("CLI argument parsing", () => {
     const { stdout } = await runCli(["--help"]);
     expect(stdout).toMatch(/--agent.*claude/);
   });
+});
+
+describe("iteration argument parsing", () => {
+  let tempDir: string;
+
+  beforeAll(() => {
+    tempDir = mkdtempSync(join(tmpdir(), "ralph-test-"));
+  });
+
+  afterAll(() => {
+    rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  it("handles non-numeric build iterations without hanging", async () => {
+    const result = await runCli(["build", "abc"], tempDir);
+    expect(result.stderr).toContain("no implementation plan");
+  }, 15000);
+
+  it("handles non-numeric refine iterations without hanging", async () => {
+    const result = await runCli(["refine", "abc"], tempDir);
+    expect(result.stderr).toContain("no implementation plan");
+  }, 15000);
 });
