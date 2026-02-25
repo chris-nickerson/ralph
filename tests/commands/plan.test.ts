@@ -156,9 +156,10 @@ describe("runPlan", () => {
 
     const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     await runPlan("goal", defaultOptions);
-    consoleSpy.mockRestore();
 
     expect(mocks.countTasks).toHaveBeenCalled();
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("5 tasks"));
+    consoleSpy.mockRestore();
   });
 
   it("prints worktree next steps when worktreeInfo provided", async () => {
