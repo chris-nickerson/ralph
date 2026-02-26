@@ -37,7 +37,7 @@ function makeOptions(cmd: Command): RalphOptions {
     throw new Error("--timeout must be a non-negative integer");
   }
   return {
-    agent: opts.agent ?? "claude",
+    agent: opts.agent ?? "cursor",
     debug: opts.debug ?? false,
     force: opts.force ?? false,
     noCommit: opts.commit === false,
@@ -63,7 +63,7 @@ program
   .name("ralph")
   .description("autonomous coding loop")
   .version(pkg.version)
-  .option("-a, --agent <name>", "Agent to use: claude, codex, cursor", "claude")
+  .option("-a, --agent <name>", "Agent to use: claude, codex, cursor", "cursor")
   .option("-d, --debug", "Run agent in foreground (see output in real-time)")
   .option("-f, --force", "Skip confirmation prompts")
   .option("-n, --no-commit", "Skip commits (leave changes in working tree)")

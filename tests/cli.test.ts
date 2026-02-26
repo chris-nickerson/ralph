@@ -90,9 +90,9 @@ describe("CLI argument parsing", () => {
     expect(result.code).not.toBe(0);
   });
 
-  it("shows default agent as claude", async () => {
+  it("shows default agent as cursor", async () => {
     const { stdout } = await runCli(["--help"]);
-    expect(stdout).toMatch(/--agent.*claude/);
+    expect(stdout).toMatch(/--agent.*cursor/);
   });
 });
 

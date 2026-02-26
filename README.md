@@ -12,6 +12,8 @@ This installs to `~/.ralph/` and symlinks `ralph` to `~/.local/bin/`.
 
 ## Quick Start
 
+The recommended workflow is: generate a plan, refine it until solid, review it manually, then build. `refine` and `build` run in loops — you control how many iterations with an optional count argument.
+
 ```bash
 # 1. Plan
 ralph plan "Add user authentication"
@@ -37,6 +39,8 @@ ralph plan --force        # Skip confirmation prompts
 ralph build -w            # Run build in a git worktree
 ralph build --no-review   # Build only, skip code review
 ralph build -n            # Keep changes uncommitted
+ralph build -d            # Run agent in foreground (see output in real-time)
+ralph build -t 300        # Set per-agent-invocation timeout to 300 seconds (0 = none)
 ralph update              # Update to latest version
 ```
 
@@ -63,7 +67,7 @@ ralph build -a cursor
 ## How It Works
 
 1. **Plan mode** reads your goal, searches the codebase, and generates `IMPLEMENTATION_PLAN.md` with atomic tasks
-2. **Refine mode** iteratively improves the plan by alternating between investigation (find gaps) and review (staff-level assessment) until both agree it's ready
+2. **Refine mode** iteratively improves the plan by alternating between investigation (searches the codebase for gaps and ambiguities in the plan) and review (staff-level assessment of plan quality). Exits automatically when both phases consecutively signal the plan is ready
 3. **Build mode** runs two phases per task: a build agent implements, then a review agent performs a staff-level code review, fixes issues, and commits. A final comprehensive review runs after all tasks complete
 4. Build exits when all tasks are complete or max iterations reached
 
@@ -80,9 +84,9 @@ Use `--no-review` to skip review phases (build agent implements and commits dire
 | `prompts/build.md` | Build prompt (implement task) |
 | `prompts/review.md` | Per-iteration code review prompt |
 | `prompts/review_final.md` | Final comprehensive review prompt |
-| `GOAL.md` | Your objective (optional, for complex goals) |
+| `GOAL.md` | Your objective. When a goal is too long or complex for a one-liner, write it here and run `ralph plan` with no argument |
 | `IMPLEMENTATION_PLAN.md` | Generated task list |
-| `progress.txt` | Learning log between iterations |
+| `progress.txt` | Carries context between build iterations — the agent appends notes here so subsequent iterations can build on previous findings without re-reading everything |
 
 ## Requirements
 
