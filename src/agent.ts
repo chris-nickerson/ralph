@@ -38,13 +38,13 @@ export interface RalphOptions {
   timeout: number;
 }
 
-let activeChild: ChildProcess | null = null;
+const activeChildren: ChildProcess[] = [];
 
 export function killAgent(): void {
-  if (activeChild) {
-    activeChild.kill();
-    activeChild = null;
+  for (const child of activeChildren) {
+    child.kill();
   }
+  activeChildren.length = 0;
 }
 
 export function validateAgent(name: string): AgentConfig {
@@ -71,11 +71,12 @@ export async function runAgent(
   options: RalphOptions,
   activity: string,
   startTime: number,
+  silent?: boolean,
 ): Promise<{ output: string; exitCode: number }> {
   if (options.debug) {
     return runDebug(prompt, config, options.timeout);
   }
-  return runWithSpinner(prompt, config, activity, startTime, options.timeout);
+  return runWithSpinner(prompt, config, activity, startTime, options.timeout, silent);
 }
 
 interface SpawnResult {
@@ -98,7 +99,7 @@ function spawnAgent(
     const child = spawn(config.command, config.args, {
       stdio: ["pipe", "pipe", "pipe"],
     });
-    activeChild = child;
+    activeChildren.push(child);
 
     let timedOut = false;
     let settled = false;
@@ -130,7 +131,8 @@ function spawnAgent(
       if (settled) return;
       settled = true;
       if (killTimer) clearTimeout(killTimer);
-      activeChild = null;
+      const idx = activeChildren.indexOf(child);
+      if (idx !== -1) activeChildren.splice(idx, 1);
       resolve({
         output: error ? "" : Buffer.concat(chunks).toString("utf-8"),
         exitCode,
@@ -177,6 +179,7 @@ async function runWithSpinner(
   activity: string,
   startTime: number,
   timeout: number,
+  silent?: boolean,
 ): Promise<{ output: string; exitCode: number }> {
   const spinner = ora({
     spinner: isUtf8 ? "dots" : { frames: ["-", "\\", "|", "/"] },
@@ -198,7 +201,7 @@ async function runWithSpinner(
   clearInterval(timer);
   spinner.stop();
 
-  if (output) {
+  if (output && !silent) {
     process.stdout.write(output);
   }
 
@@ -216,4 +219,50 @@ async function runWithSpinner(
   }
 
   return { output, exitCode };
+}
+
+export async function runAgentsParallel(
+  tasks: Array<{ prompt: string; label: string }>,
+  config: AgentConfig,
+  options: RalphOptions,
+  activity: string,
+  startTime: number,
+): Promise<Array<{ output: string; exitCode: number; label: string }>> {
+  if (options.debug) {
+    const results: Array<{ output: string; exitCode: number; label: string }> = [];
+    for (const task of tasks) {
+      console.log(`\n${dim(`[${task.label}]`)}`);
+      const { output, exitCode } = await runDebug(task.prompt, config, options.timeout);
+      results.push({ output, exitCode, label: task.label });
+    }
+    return results;
+  }
+
+  const spinner = ora({
+    spinner: isUtf8 ? "dots" : { frames: ["-", "\\", "|", "/"] },
+    prefixText: " ",
+  });
+
+  let completed = 0;
+  const total = tasks.length;
+  const elapsed = () =>
+    formatDuration(Math.floor((Date.now() - startTime) / 1000));
+
+  spinner.start(`${activity} (0/${total} complete) ${dim(elapsed())}`);
+  const timer = setInterval(() => {
+    spinner.text = `${activity} (${completed}/${total} complete) ${dim(elapsed())}`;
+  }, 500);
+
+  const promises = tasks.map(async (task) => {
+    const result = await spawnAgent(task.prompt, config, options.timeout);
+    completed++;
+    return { output: result.output, exitCode: result.exitCode, label: task.label };
+  });
+
+  const results = await Promise.all(promises);
+
+  clearInterval(timer);
+  spinner.stop();
+
+  return results;
 }

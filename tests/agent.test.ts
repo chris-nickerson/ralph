@@ -274,4 +274,303 @@ describe("runAgent", () => {
 
     vi.useRealTimers();
   });
+
+  it("silent mode suppresses stdout output", async () => {
+    const mockChild = createMockChild();
+    spawnMock = vi.fn().mockReturnValue(mockChild);
+
+    vi.doMock("node:child_process", () => ({
+      spawn: spawnMock,
+      execFileSync: vi.fn(),
+    }));
+
+    vi.doMock("ora", () => ({
+      default: () => ({
+        start: vi.fn().mockReturnThis(),
+        stop: vi.fn(),
+        set text(_: string) {},
+      }),
+    }));
+
+    const stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+    const { runAgent } = await import("../src/agent.js");
+
+    const resultPromise = runAgent(
+      "test prompt",
+      AGENTS.claude,
+      makeOptions(),
+      "building",
+      Date.now(),
+      true,
+    );
+
+    mockChild.stdout.emit("data", Buffer.from("silent output"));
+    mockChild.emit("close", 0);
+
+    const result = await resultPromise;
+    expect(result.output).toBe("silent output");
+    expect(result.exitCode).toBe(0);
+
+    const stdoutCalls = stdoutSpy.mock.calls.map(c => String(c[0]));
+    expect(stdoutCalls.some(s => s.includes("silent output"))).toBe(false);
+
+    stdoutSpy.mockRestore();
+  });
+});
+
+describe("killAgent", () => {
+  let spawnMock: ReturnType<typeof vi.fn>;
+
+  function createMockChild() {
+    const child = new EventEmitter() as EventEmitter & {
+      stdin: { write: ReturnType<typeof vi.fn>; end: ReturnType<typeof vi.fn> };
+      stdout: EventEmitter;
+      stderr: EventEmitter;
+    };
+    const stdinEmitter = new EventEmitter();
+    child.stdin = Object.assign(stdinEmitter, { write: vi.fn(), end: vi.fn() });
+    child.stdout = new EventEmitter();
+    child.stderr = new EventEmitter();
+    (child as any).kill = vi.fn();
+    return child;
+  }
+
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("kills all tracked children", async () => {
+    const child1 = createMockChild();
+    const child2 = createMockChild();
+    spawnMock = vi.fn()
+      .mockReturnValueOnce(child1)
+      .mockReturnValueOnce(child2);
+
+    vi.doMock("node:child_process", () => ({
+      spawn: spawnMock,
+      execFileSync: vi.fn(),
+    }));
+
+    vi.doMock("ora", () => ({
+      default: () => ({
+        start: vi.fn().mockReturnThis(),
+        stop: vi.fn(),
+        set text(_: string) {},
+      }),
+    }));
+
+    const { runAgent, killAgent } = await import("../src/agent.js");
+
+    const opts = {
+      agent: "claude", debug: false, force: false, noCommit: false,
+      noRefine: false, noReview: false, worktree: false, timeout: 0,
+    } as RalphOptions;
+
+    const p1 = runAgent("prompt1", AGENTS.claude, opts, "building", Date.now());
+    const p2 = runAgent("prompt2", AGENTS.claude, opts, "building", Date.now());
+
+    killAgent();
+
+    expect((child1 as any).kill).toHaveBeenCalled();
+    expect((child2 as any).kill).toHaveBeenCalled();
+
+    child1.emit("close", 1);
+    child2.emit("close", 1);
+    await p1;
+    await p2;
+  });
+});
+
+describe("runAgentsParallel", () => {
+  const makeOptions = (overrides: Partial<RalphOptions> = {}): RalphOptions => ({
+    agent: "claude",
+    debug: false,
+    force: false,
+    noCommit: false,
+    noRefine: false,
+    noReview: false,
+    worktree: false,
+    timeout: 0,
+    ...overrides,
+  });
+
+  let spawnMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function createMockChild() {
+    const child = new EventEmitter() as EventEmitter & {
+      stdin: { write: ReturnType<typeof vi.fn>; end: ReturnType<typeof vi.fn> };
+      stdout: EventEmitter;
+      stderr: EventEmitter;
+    };
+    const stdinEmitter = new EventEmitter();
+    child.stdin = Object.assign(stdinEmitter, { write: vi.fn(), end: vi.fn() });
+    child.stdout = new EventEmitter();
+    child.stderr = new EventEmitter();
+    (child as any).kill = vi.fn();
+    return child;
+  }
+
+  it("launches all agents and returns all results", async () => {
+    const children = [createMockChild(), createMockChild(), createMockChild()];
+    let childIdx = 0;
+    spawnMock = vi.fn().mockImplementation(() => children[childIdx++]);
+
+    vi.doMock("node:child_process", () => ({
+      spawn: spawnMock,
+      execFileSync: vi.fn(),
+    }));
+
+    vi.doMock("ora", () => ({
+      default: () => ({
+        start: vi.fn().mockReturnThis(),
+        stop: vi.fn(),
+        set text(_: string) {},
+      }),
+    }));
+
+    const { runAgentsParallel } = await import("../src/agent.js");
+
+    const tasks = [
+      { prompt: "prompt1", label: "Agent A" },
+      { prompt: "prompt2", label: "Agent B" },
+      { prompt: "prompt3", label: "Agent C" },
+    ];
+
+    const resultPromise = runAgentsParallel(
+      tasks,
+      AGENTS.claude,
+      makeOptions(),
+      "reviewing",
+      Date.now(),
+    );
+
+    await vi.waitFor(() => {
+      expect(spawnMock).toHaveBeenCalledTimes(3);
+    });
+
+    children[0].stdout.emit("data", Buffer.from("output A"));
+    children[0].emit("close", 0);
+    children[1].stdout.emit("data", Buffer.from("output B"));
+    children[1].emit("close", 0);
+    children[2].stdout.emit("data", Buffer.from("output C"));
+    children[2].emit("close", 1);
+
+    const results = await resultPromise;
+
+    expect(results).toHaveLength(3);
+    expect(results[0]).toEqual({ output: "output A", exitCode: 0, label: "Agent A" });
+    expect(results[1]).toEqual({ output: "output B", exitCode: 0, label: "Agent B" });
+    expect(results[2]).toEqual({ output: "output C", exitCode: 1, label: "Agent C" });
+  });
+
+  it("does not write individual agent outputs to stdout", async () => {
+    const children = [createMockChild(), createMockChild()];
+    let childIdx = 0;
+    spawnMock = vi.fn().mockImplementation(() => children[childIdx++]);
+
+    vi.doMock("node:child_process", () => ({
+      spawn: spawnMock,
+      execFileSync: vi.fn(),
+    }));
+
+    vi.doMock("ora", () => ({
+      default: () => ({
+        start: vi.fn().mockReturnThis(),
+        stop: vi.fn(),
+        set text(_: string) {},
+      }),
+    }));
+
+    const stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+    const { runAgentsParallel } = await import("../src/agent.js");
+
+    const tasks = [
+      { prompt: "p1", label: "A" },
+      { prompt: "p2", label: "B" },
+    ];
+
+    const resultPromise = runAgentsParallel(
+      tasks, AGENTS.claude, makeOptions(), "reviewing", Date.now(),
+    );
+
+    await vi.waitFor(() => {
+      expect(spawnMock).toHaveBeenCalledTimes(2);
+    });
+
+    children[0].stdout.emit("data", Buffer.from("output A"));
+    children[0].emit("close", 0);
+    children[1].stdout.emit("data", Buffer.from("output B"));
+    children[1].emit("close", 0);
+
+    await resultPromise;
+
+    const stdoutCalls = stdoutSpy.mock.calls.map(c => String(c[0]));
+    expect(stdoutCalls.some(s => s.includes("output A"))).toBe(false);
+    expect(stdoutCalls.some(s => s.includes("output B"))).toBe(false);
+
+    stdoutSpy.mockRestore();
+  });
+
+  it("runs agents sequentially in debug mode", async () => {
+    const children = [createMockChild(), createMockChild()];
+    let childIdx = 0;
+    spawnMock = vi.fn().mockImplementation(() => children[childIdx++]);
+
+    vi.doMock("node:child_process", () => ({
+      spawn: spawnMock,
+      execFileSync: vi.fn(),
+    }));
+
+    vi.doMock("ora", () => ({
+      default: () => ({
+        start: vi.fn().mockReturnThis(),
+        stop: vi.fn(),
+        set text(_: string) {},
+      }),
+    }));
+
+    const { runAgentsParallel } = await import("../src/agent.js");
+
+    const tasks = [
+      { prompt: "p1", label: "First" },
+      { prompt: "p2", label: "Second" },
+    ];
+
+    const resultPromise = runAgentsParallel(
+      tasks, AGENTS.claude, makeOptions({ debug: true }), "reviewing", Date.now(),
+    );
+
+    await vi.waitFor(() => {
+      expect(spawnMock).toHaveBeenCalledTimes(1);
+    });
+
+    children[0].stdout.emit("data", Buffer.from("first output"));
+    children[0].emit("close", 0);
+
+    await vi.waitFor(() => {
+      expect(spawnMock).toHaveBeenCalledTimes(2);
+    });
+
+    children[1].stdout.emit("data", Buffer.from("second output"));
+    children[1].emit("close", 0);
+
+    const results = await resultPromise;
+    expect(results).toHaveLength(2);
+    expect(results[0].label).toBe("First");
+    expect(results[1].label).toBe("Second");
+  });
 });
