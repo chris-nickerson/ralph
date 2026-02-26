@@ -135,7 +135,11 @@ program
     const config = validateAgent(options.agent);
     checkAgentInstalled(config);
     const { runReview } = await import("./commands/review.js");
-    await runReview(config, options, cmdOpts.scope);
+    const { parseReviewInstruction } = await import("./git.js");
+    const instruction = cmdOpts.scope
+      ? parseReviewInstruction(cmdOpts.scope)
+      : undefined;
+    await runReview(config, options, instruction);
   });
 
 program

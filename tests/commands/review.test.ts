@@ -117,9 +117,9 @@ describe("runReview", () => {
     expect(mocks.printError).toHaveBeenCalledWith("no changes to review");
   });
 
-  it("forwards scope override to determineDiffScope", async () => {
-    await runReview(agentConfig, defaultOptions, "working");
-    expect(mocks.determineDiffScope).toHaveBeenCalledWith("working");
+  it("forwards instruction to determineDiffScope", async () => {
+    await runReview(agentConfig, defaultOptions, { type: "working" });
+    expect(mocks.determineDiffScope).toHaveBeenCalledWith({ type: "working" });
   });
 
   it("runs all 3 phases in order", async () => {

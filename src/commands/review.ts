@@ -7,6 +7,7 @@ import {
   getDiffStat,
   getCommitLog,
 } from "../git.js";
+import type { ReviewInstruction } from "../git.js";
 import {
   buildSpecialistPrompt,
   buildSynthesisPrompt,
@@ -33,9 +34,9 @@ const SPECIALIST_LABELS = [
 export async function runReview(
   config: AgentConfig,
   options: RalphOptions,
-  scopeOverride?: string,
+  instruction?: ReviewInstruction,
 ): Promise<void> {
-  const { diffCmd, scope, range } = await determineDiffScope(scopeOverride);
+  const { diffCmd, scope, range } = await determineDiffScope(instruction);
 
   const empty = await isDiffEmpty(range);
   if (empty) {
