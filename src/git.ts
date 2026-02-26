@@ -5,6 +5,44 @@ import { promisify } from "node:util";
 
 const execFile = promisify(execFileCb);
 
+export type ReviewInstruction =
+  | { type: "ref"; ref: string }
+  | { type: "staged" }
+  | { type: "working" }
+  | { type: "branch" };
+
+export function parseReviewInstruction(
+  instruction: string,
+): ReviewInstruction | undefined {
+  const text = instruction.toLowerCase();
+
+  if (/\bstaged\b/.test(text) || /\bcached\b/.test(text)) {
+    return { type: "staged" };
+  }
+
+  if (
+    /\bworking\b/.test(text) ||
+    /\buncommitted\b/.test(text) ||
+    /\bcurrent\s+(diff|changes)\b/.test(text)
+  ) {
+    return { type: "working" };
+  }
+
+  const refMatch = instruction.match(
+    /(against|vs|versus|from|compared?\s*to|relative\s*to)\s+(\S+)/i,
+  );
+  if (refMatch) {
+    const ref = refMatch[2].replace(/[`'"]/g, "");
+    return { type: "ref", ref };
+  }
+
+  if (/\bbranch\b/.test(text)) {
+    return { type: "branch" };
+  }
+
+  return undefined;
+}
+
 export interface WorktreeInfo {
   branch: string;
   name: string;
@@ -84,12 +122,21 @@ async function remoteRefExists(ref: string): Promise<boolean> {
 }
 
 export async function determineDiffScope(
-  scopeOverride?: string,
+  instruction?: ReviewInstruction,
 ): Promise<{ diffCmd: string; scope: "branch" | "working"; range: string }> {
+  if (instruction?.type === "ref") {
+    const range = `${instruction.ref}...HEAD`;
+    return { diffCmd: `git diff ${range}`, scope: "branch", range };
+  }
+
+  if (instruction?.type === "staged") {
+    return { diffCmd: "git diff --cached", scope: "working", range: "--cached" };
+  }
+
   const branch = await getCurrentBranch();
   const onMain = branch === "main" || branch === "master";
 
-  if (scopeOverride === "branch" || (!scopeOverride && !onMain)) {
+  if (instruction?.type === "branch" || (!instruction && !onMain)) {
     if (!onMain) {
       const hasOriginMain = await remoteRefExists("origin/main");
       if (hasOriginMain) {

@@ -287,7 +287,7 @@ describe("determineDiffScope", () => {
     });
   });
 
-  it("respects scopeOverride working", async () => {
+  it("respects instruction type working", async () => {
     vi.doMock("node:child_process", () => ({
       execFile: mockExecFile((cmd, args) => {
         if (args[0] === "branch") return { stdout: "feature/x\n", stderr: "" };
@@ -297,11 +297,39 @@ describe("determineDiffScope", () => {
     }));
 
     const { determineDiffScope } = await import("../src/git.js");
-    const result = await determineDiffScope("working");
+    const result = await determineDiffScope({ type: "working" });
     expect(result).toEqual({
       diffCmd: "git diff HEAD",
       scope: "working",
       range: "HEAD",
+    });
+  });
+
+  it("diffs against a specific ref", async () => {
+    vi.doMock("node:child_process", () => ({
+      execFile: mockExecFile(() => ({ stdout: "", stderr: "" })),
+    }));
+
+    const { determineDiffScope } = await import("../src/git.js");
+    const result = await determineDiffScope({ type: "ref", ref: "develop" });
+    expect(result).toEqual({
+      diffCmd: "git diff develop...HEAD",
+      scope: "branch",
+      range: "develop...HEAD",
+    });
+  });
+
+  it("returns staged diff for staged instruction", async () => {
+    vi.doMock("node:child_process", () => ({
+      execFile: mockExecFile(() => ({ stdout: "", stderr: "" })),
+    }));
+
+    const { determineDiffScope } = await import("../src/git.js");
+    const result = await determineDiffScope({ type: "staged" });
+    expect(result).toEqual({
+      diffCmd: "git diff --cached",
+      scope: "working",
+      range: "--cached",
     });
   });
 });
