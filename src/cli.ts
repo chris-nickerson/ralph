@@ -127,6 +127,18 @@ program
   });
 
 program
+  .command("review")
+  .description("Parallel code review with specialist agents")
+  .option("--scope <type>", "Diff scope: branch or working (auto-detected if omitted)")
+  .action(async (cmdOpts) => {
+    const options = makeOptions(program);
+    const config = validateAgent(options.agent);
+    checkAgentInstalled(config);
+    const { runReview } = await import("./commands/review.js");
+    await runReview(config, options, cmdOpts.scope);
+  });
+
+program
   .command("update")
   .description("Update to latest version")
   .action(async () => {

@@ -69,6 +69,19 @@ export function printPhase(
   console.log("");
 }
 
+export function printStep(step: number, label: string, detail?: string): void {
+  console.log("");
+  console.log(dim(line()));
+  if (detail) {
+    console.log(
+      `  step ${step} ${dim(SYM_DOT)} ${label} ${dim(SYM_DOT)} ${detail}`,
+    );
+  } else {
+    console.log(`  step ${step} ${dim(SYM_DOT)} ${label}`);
+  }
+  console.log("");
+}
+
 export function printComplete(iterations: number, elapsed: string): void {
   const word = iterations === 1 ? "iteration" : "iterations";
   console.log("");
