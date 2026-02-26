@@ -52,6 +52,7 @@ const defaultOptions: RalphOptions = {
   debug: false,
   force: false,
   noCommit: false,
+  noRefine: false,
   noReview: false,
   worktree: false,
   timeout: 0,

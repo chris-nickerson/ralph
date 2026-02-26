@@ -32,6 +32,7 @@ export interface RalphOptions {
   debug: boolean;
   force: boolean;
   noCommit: boolean;
+  noRefine: boolean;
   noReview: boolean;
   worktree: boolean;
   timeout: number;

@@ -41,6 +41,7 @@ function makeOptions(cmd: Command): RalphOptions {
     debug: opts.debug ?? false,
     force: opts.force ?? false,
     noCommit: opts.commit === false,
+    noRefine: opts.refine === false,
     noReview: opts.review === false,
     worktree: opts.worktree ?? false,
     timeout: parseInt(timeoutStr, 10),
@@ -67,6 +68,7 @@ program
   .option("-d, --debug", "Run agent in foreground (see output in real-time)")
   .option("-f, --force", "Skip confirmation prompts")
   .option("-n, --no-commit", "Skip commits (leave changes in working tree)")
+  .option("--no-refine", "Skip plan refinement (create plan only)")
   .option("--no-review", "Skip review phases (build only, no code review)")
   .option("-w, --worktree", "Run in a git worktree (isolates changes)")
   .option("-t, --timeout <seconds>", "Agent timeout in seconds (0 = none)", "0");
