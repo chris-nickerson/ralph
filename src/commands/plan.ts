@@ -1,7 +1,7 @@
 import { runAgent } from "../agent.js";
 import type { AgentConfig, RalphOptions } from "../agent.js";
 import type { WorktreeInfo } from "../git.js";
-import { runRefine } from "./refine.js";
+import { runRefine, DEFAULT_REFINE_ITERATIONS } from "./refine.js";
 import { buildPlanPrompt } from "../prompt.js";
 import { hasContent, countTasks, clearStateFiles } from "../state.js";
 import {
@@ -89,7 +89,7 @@ export async function runPlan(
   console.log("");
 
   if (!options.noRefine) {
-    await runRefine(10, config, options, worktreeInfo);
+    await runRefine(DEFAULT_REFINE_ITERATIONS, config, options, worktreeInfo);
     return;
   }
 

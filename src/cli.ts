@@ -95,14 +95,14 @@ program
     const options = makeOptions(program);
     const config = validateAgent(options.agent);
     checkAgentInstalled(config);
+    const { runRefine, DEFAULT_REFINE_ITERATIONS } = await import("./commands/refine.js");
     const max =
       iterations && /^\d+$/.test(iterations)
         ? parseInt(iterations, 10)
-        : 10;
+        : DEFAULT_REFINE_ITERATIONS;
     const wt = options.worktree
       ? await setupWorktree("refine")
       : undefined;
-    const { runRefine } = await import("./commands/refine.js");
     await runRefine(max, config, options, wt);
     worktreeDone = true;
   });

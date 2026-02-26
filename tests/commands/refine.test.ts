@@ -58,15 +58,11 @@ const defaultOptions: RalphOptions = {
 const agentConfig = { name: "claude", command: "claude", args: ["-p"] };
 
 describe("runRefine", () => {
-  let exitSpy: ReturnType<typeof vi.spyOn>;
   let consoleSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useRealTimers();
-    exitSpy = vi.spyOn(process, "exit").mockImplementation((() => {
-      throw new Error("EXIT");
-    }) as never);
     consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
     mocks.hasContent.mockResolvedValue(true);
@@ -80,11 +76,11 @@ describe("runRefine", () => {
     consoleSpy.mockRestore();
   });
 
-  it("errors when no plan exists", async () => {
+  it("returns early when no plan exists", async () => {
     mocks.hasContent.mockResolvedValue(false);
 
-    await expect(runRefine(10, agentConfig, defaultOptions)).rejects.toThrow("EXIT");
-    expect(exitSpy).toHaveBeenCalledWith(1);
+    const result = await runRefine(10, agentConfig, defaultOptions);
+    expect(result).toEqual({ done: false, iterations: 0 });
     expect(mocks.printError).toHaveBeenCalledWith("no implementation plan found");
   });
 
@@ -94,13 +90,13 @@ describe("runRefine", () => {
     mocks.runAgent.mockResolvedValue({ output: "working", exitCode: 0 });
 
     const promise = runRefine(3, agentConfig, defaultOptions);
-    promise.catch(() => {});
 
     for (let i = 0; i < 3; i++) {
       await vi.advanceTimersByTimeAsync(1000);
     }
 
-    await expect(promise).rejects.toThrow("EXIT");
+    const result = await promise;
+    expect(result).toEqual({ done: false, iterations: 3 });
 
     const phaseCalls = mocks.printPhase.mock.calls;
     expect(phaseCalls[0]).toEqual([1, "investigate"]);
@@ -122,20 +118,20 @@ describe("runRefine", () => {
       .mockResolvedValue({ output: "still working", exitCode: 0 });
 
     const promise = runRefine(5, agentConfig, defaultOptions);
-    promise.catch(() => {});
 
     for (let i = 0; i < 5; i++) {
       await vi.advanceTimersByTimeAsync(1000);
     }
 
-    await expect(promise).rejects.toThrow("EXIT");
+    const result = await promise;
+    expect(result).toEqual({ done: false, iterations: 5 });
 
-    const logCalls = consoleSpy.mock.calls.map((c) => c[0]);
-    const readyLog = logCalls.find((l: string) => typeof l === "string" && l.includes("plan is ready (1/2)"));
+    const logCalls = consoleSpy.mock.calls.map((c) => String(c[0]));
+    const readyLog = logCalls.find((l) => l.includes("plan is ready (1/2)"));
     expect(readyLog).toBeDefined();
   });
 
-  it("exits after 2 consecutive ready signals", async () => {
+  it("returns done after 2 consecutive ready signals", async () => {
     vi.useFakeTimers();
 
     mocks.runAgent
@@ -143,15 +139,14 @@ describe("runRefine", () => {
       .mockResolvedValueOnce({ output: "lines\n<done>PLAN_READY</done>\n", exitCode: 0 });
 
     const promise = runRefine(10, agentConfig, defaultOptions);
-    promise.catch(() => {});
 
     await vi.advanceTimersByTimeAsync(1000);
 
-    await expect(promise).rejects.toThrow("EXIT");
-    expect(exitSpy).toHaveBeenCalledWith(0);
+    const result = await promise;
+    expect(result).toEqual({ done: true, iterations: 2 });
 
-    const logCalls = consoleSpy.mock.calls.map((c) => c[0]);
-    const planReady = logCalls.find((l: string) => typeof l === "string" && l.includes("plan ready"));
+    const logCalls = consoleSpy.mock.calls.map((c) => String(c[0]));
+    const planReady = logCalls.find((l) => l.includes("plan ready"));
     expect(planReady).toBeDefined();
   });
 
@@ -165,13 +160,13 @@ describe("runRefine", () => {
       .mockResolvedValue({ output: "no signal\n", exitCode: 0 });
 
     const promise = runRefine(5, agentConfig, defaultOptions);
-    promise.catch(() => {});
 
     for (let i = 0; i < 5; i++) {
       await vi.advanceTimersByTimeAsync(1000);
     }
 
-    await expect(promise).rejects.toThrow("EXIT");
+    const result = await promise;
+    expect(result).toEqual({ done: false, iterations: 5 });
 
     expect(mocks.printLimitReached).toHaveBeenCalledWith(5, "ralph", "refine", false);
   });
@@ -182,13 +177,12 @@ describe("runRefine", () => {
     mocks.runAgent.mockResolvedValue({ output: "working", exitCode: 0 });
 
     const promise = runRefine(2, agentConfig, defaultOptions);
-    promise.catch(() => {});
 
     await vi.advanceTimersByTimeAsync(1000);
     await vi.advanceTimersByTimeAsync(1000);
 
-    await expect(promise).rejects.toThrow("EXIT");
-    expect(exitSpy).toHaveBeenCalledWith(0);
+    const result = await promise;
+    expect(result).toEqual({ done: false, iterations: 2 });
     expect(mocks.printLimitReached).toHaveBeenCalledWith(2, "ralph", "refine", false);
   });
 
@@ -200,11 +194,11 @@ describe("runRefine", () => {
     mocks.runAgent.mockResolvedValue({ output: "working", exitCode: 0 });
 
     const promise = runRefine(1, agentConfig, defaultOptions, worktreeInfo);
-    promise.catch(() => {});
 
     await vi.advanceTimersByTimeAsync(1000);
 
-    await expect(promise).rejects.toThrow("EXIT");
+    const result = await promise;
+    expect(result).toEqual({ done: false, iterations: 1 });
     expect(mocks.printWorktreeNext).toHaveBeenCalledWith("resume", worktreeInfo, "ralph", "refine");
   });
 
@@ -217,13 +211,12 @@ describe("runRefine", () => {
       .mockResolvedValueOnce({ output: "lines\n<done>PLAN_READY</done>\n", exitCode: 0 });
 
     const promise = runRefine(10, agentConfig, defaultOptions);
-    promise.catch(() => {});
 
     await vi.advanceTimersByTimeAsync(1000);
     await vi.advanceTimersByTimeAsync(1000);
 
-    await expect(promise).rejects.toThrow("EXIT");
-    expect(exitSpy).toHaveBeenCalledWith(0);
+    const result = await promise;
+    expect(result).toEqual({ done: true, iterations: 3 });
     expect(mocks.runAgent).toHaveBeenCalledTimes(3);
   });
 
@@ -237,14 +230,13 @@ describe("runRefine", () => {
       .mockResolvedValueOnce({ output: "<done>PLAN_READY</done>\n", exitCode: 0 });
 
     const promise = runRefine(10, agentConfig, defaultOptions);
-    promise.catch(() => {});
 
     for (let i = 0; i < 4; i++) {
       await vi.advanceTimersByTimeAsync(1000);
     }
 
-    await expect(promise).rejects.toThrow("EXIT");
-    expect(exitSpy).toHaveBeenCalledWith(0);
+    const result = await promise;
+    expect(result).toEqual({ done: true, iterations: 4 });
     expect(mocks.runAgent).toHaveBeenCalledTimes(4);
   });
 
@@ -259,33 +251,31 @@ describe("runRefine", () => {
       .mockResolvedValueOnce({ output: "", exitCode: 1 });
 
     const promise = runRefine(5, agentConfig, defaultOptions);
-    promise.catch(() => {});
 
     for (let i = 0; i < 5; i++) await vi.advanceTimersByTimeAsync(1000);
 
-    await expect(promise).rejects.toThrow("EXIT");
+    const result = await promise;
+    expect(result).toEqual({ done: false, iterations: 5 });
 
     expect(mocks.printError).not.toHaveBeenCalledWith(
       "agent failed 3 times consecutively; stopping",
     );
-    expect(exitSpy).toHaveBeenCalledWith(0);
   });
 
-  it("exits after 3 consecutive agent failures", async () => {
+  it("stops after 3 consecutive agent failures", async () => {
     vi.useFakeTimers();
 
     mocks.runAgent.mockResolvedValue({ output: "", exitCode: 1 });
 
     const promise = runRefine(10, agentConfig, defaultOptions);
-    promise.catch(() => {});
 
     await vi.advanceTimersByTimeAsync(1000);
     await vi.advanceTimersByTimeAsync(1000);
     await vi.advanceTimersByTimeAsync(1000);
 
-    await expect(promise).rejects.toThrow("EXIT");
+    const result = await promise;
+    expect(result).toEqual({ done: false, iterations: 3 });
 
-    expect(exitSpy).toHaveBeenCalledWith(1);
     expect(mocks.runAgent).toHaveBeenCalledTimes(3);
     expect(mocks.printError).toHaveBeenCalledWith("agent failed 3 times consecutively; stopping");
   });

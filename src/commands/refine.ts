@@ -20,8 +20,15 @@ import {
 
 const SCRIPT_NAME = "ralph";
 
+export const DEFAULT_REFINE_ITERATIONS = 10;
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export interface RefineResult {
+  done: boolean;
+  iterations: number;
 }
 
 export async function runRefine(
@@ -29,14 +36,14 @@ export async function runRefine(
   config: AgentConfig,
   options: RalphOptions,
   worktreeInfo?: WorktreeInfo,
-): Promise<void> {
+): Promise<RefineResult> {
   if (!(await hasContent("IMPLEMENTATION_PLAN.md"))) {
     printError("no implementation plan found");
     console.log("");
     console.log(`  ${dim("Create a plan first:")}`);
     console.log(`  ${SCRIPT_NAME} plan "your goal"`);
     console.log("");
-    process.exit(1);
+    return { done: false, iterations: 0 };
   }
 
   const taskCount = await countTasks();
@@ -65,7 +72,7 @@ export async function runRefine(
       if (worktreeInfo) {
         printWorktreeNext("resume", worktreeInfo, SCRIPT_NAME, "refine");
       }
-      process.exit(0);
+      return { done: false, iterations: iteration - 1 };
     }
 
     printPhase(iteration, phase);
@@ -89,7 +96,7 @@ export async function runRefine(
       consecutiveReady = 0;
       if (consecutiveFailures >= 3) {
         printError("agent failed 3 times consecutively; stopping");
-        process.exit(1);
+        return { done: false, iterations: iteration };
       }
       phase = phase === "investigate" ? "review" : "investigate";
       await sleep(1000);
@@ -122,7 +129,7 @@ export async function runRefine(
           console.log(`  ${dim("Build:")}   ${SCRIPT_NAME} build`);
           console.log("");
         }
-        process.exit(0);
+        return { done: true, iterations: iteration };
       }
     } else {
       consecutiveReady = 0;

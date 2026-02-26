@@ -22,6 +22,7 @@ vi.mock("../../src/agent.js", () => ({
 
 vi.mock("../../src/commands/refine.js", () => ({
   runRefine: mocks.runRefine,
+  DEFAULT_REFINE_ITERATIONS: 10,
 }));
 
 vi.mock("../../src/state.js", () => ({
@@ -87,7 +88,7 @@ describe("runPlan", () => {
     mocks.clearStateFiles.mockResolvedValue(undefined);
     mocks.buildPlanPrompt.mockResolvedValue("plan prompt");
     mocks.confirm.mockResolvedValue(true);
-    mocks.runRefine.mockResolvedValue(undefined);
+    mocks.runRefine.mockResolvedValue({ done: true, iterations: 2 });
     mocks.printWorktreeNext.mockReturnValue(true);
   });
 
