@@ -3,6 +3,7 @@ import type { RalphOptions } from "../../src/agent.js";
 
 const mocks = vi.hoisted(() => ({
   runAgent: vi.fn(),
+  runRefine: vi.fn(),
   hasContent: vi.fn(),
   countTasks: vi.fn(),
   clearStateFiles: vi.fn(),
@@ -17,6 +18,10 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("../../src/agent.js", () => ({
   runAgent: mocks.runAgent,
+}));
+
+vi.mock("../../src/commands/refine.js", () => ({
+  runRefine: mocks.runRefine,
 }));
 
 vi.mock("../../src/state.js", () => ({
@@ -82,6 +87,7 @@ describe("runPlan", () => {
     mocks.clearStateFiles.mockResolvedValue(undefined);
     mocks.buildPlanPrompt.mockResolvedValue("plan prompt");
     mocks.confirm.mockResolvedValue(true);
+    mocks.runRefine.mockResolvedValue(undefined);
     mocks.printWorktreeNext.mockReturnValue(true);
   });
 
@@ -169,7 +175,7 @@ describe("runPlan", () => {
     consoleSpy.mockRestore();
   });
 
-  it("prints worktree next steps when worktreeInfo provided", async () => {
+  it("prints worktree next steps when worktreeInfo provided and noRefine", async () => {
     let callCount = 0;
     mocks.hasContent.mockImplementation(async (p: string) => {
       if (p === "IMPLEMENTATION_PLAN.md") {
@@ -182,10 +188,10 @@ describe("runPlan", () => {
 
     const worktreeInfo = { branch: "ralph/plan-20260224", name: "repo-ralph-120000", dir: "/tmp/repo-ralph-120000" };
     const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    await runPlan("goal", agentConfig, defaultOptions, worktreeInfo);
+    await runPlan("goal", agentConfig, { ...defaultOptions, noRefine: true }, worktreeInfo);
     consoleSpy.mockRestore();
 
-    expect(mocks.printWorktreeNext).toHaveBeenCalledWith("plan", worktreeInfo, "ralph", "plan");
+    expect(mocks.printWorktreeNext).toHaveBeenCalledWith("build", worktreeInfo, "ralph", "plan");
   });
 
   it("exits with code 1 when no plan is created", async () => {
@@ -205,5 +211,23 @@ describe("runPlan", () => {
   it("prints agent info", async () => {
     await runPlan("goal", agentConfig, defaultOptions);
     expect(mocks.printKv).toHaveBeenCalledWith("agent", "claude");
+  });
+
+  it("calls runRefine after plan creation by default", async () => {
+    await runPlan("goal", agentConfig, defaultOptions);
+    expect(mocks.runRefine).toHaveBeenCalledWith(10, agentConfig, defaultOptions, undefined);
+  });
+
+  it("skips runRefine when noRefine is true", async () => {
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    await runPlan("goal", agentConfig, { ...defaultOptions, noRefine: true });
+    consoleSpy.mockRestore();
+    expect(mocks.runRefine).not.toHaveBeenCalled();
+  });
+
+  it("passes worktreeInfo to runRefine", async () => {
+    const worktreeInfo = { branch: "ralph/plan-20260224", name: "repo-ralph-120000", dir: "/tmp/repo-ralph-120000" };
+    await runPlan("goal", agentConfig, defaultOptions, worktreeInfo);
+    expect(mocks.runRefine).toHaveBeenCalledWith(10, agentConfig, defaultOptions, worktreeInfo);
   });
 });

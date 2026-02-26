@@ -1,6 +1,7 @@
 import { runAgent } from "../agent.js";
 import type { AgentConfig, RalphOptions } from "../agent.js";
 import type { WorktreeInfo } from "../git.js";
+import { runRefine } from "./refine.js";
 import { buildPlanPrompt } from "../prompt.js";
 import { hasContent, countTasks, clearStateFiles } from "../state.js";
 import {
@@ -87,10 +88,14 @@ export async function runPlan(
   console.log(dim(line()));
   console.log("");
 
+  if (!options.noRefine) {
+    await runRefine(10, config, options, worktreeInfo);
+    return;
+  }
+
   if (worktreeInfo) {
-    printWorktreeNext("plan", worktreeInfo, SCRIPT_NAME, "plan");
+    printWorktreeNext("build", worktreeInfo, SCRIPT_NAME, "plan");
   } else {
-    console.log(`  ${dim("Refine:")}  ${SCRIPT_NAME} refine`);
     console.log(`  ${dim("Review:")}  cat IMPLEMENTATION_PLAN.md`);
     console.log(`  ${dim("Build:")}   ${SCRIPT_NAME} build`);
     console.log("");
