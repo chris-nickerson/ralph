@@ -80,6 +80,13 @@ describe("CLI argument parsing", () => {
     expect(stdout).toContain("Execute plan");
   });
 
+  it("review command shows [target] and --staged", async () => {
+    const { stdout } = await runCli(["review", "--help"]);
+    expect(stdout).toContain("[target]");
+    expect(stdout).toContain("--staged");
+    expect(stdout).not.toContain("--scope");
+  });
+
   it("update command has no arguments", async () => {
     const { stdout } = await runCli(["update", "--help"]);
     expect(stdout).toContain("update");

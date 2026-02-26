@@ -154,44 +154,6 @@ export async function resolveReviewTarget(
   };
 }
 
-export type ReviewInstruction =
-  | { type: "ref"; ref: string }
-  | { type: "staged" }
-  | { type: "working" }
-  | { type: "branch" };
-
-export function parseReviewInstruction(
-  instruction: string,
-): ReviewInstruction | undefined {
-  const text = instruction.toLowerCase();
-
-  if (/\bstaged\b/.test(text) || /\bcached\b/.test(text)) {
-    return { type: "staged" };
-  }
-
-  if (
-    /\bworking\b/.test(text) ||
-    /\buncommitted\b/.test(text) ||
-    /\bcurrent\s+(diff|changes)\b/.test(text)
-  ) {
-    return { type: "working" };
-  }
-
-  const refMatch = instruction.match(
-    /(against|vs|versus|from|compared?\s*to|relative\s*to)\s+(\S+)/i,
-  );
-  if (refMatch) {
-    const ref = refMatch[2].replace(/[`'"]/g, "");
-    return { type: "ref", ref };
-  }
-
-  if (/\bbranch\b/.test(text)) {
-    return { type: "branch" };
-  }
-
-  return undefined;
-}
-
 export interface WorktreeInfo {
   branch: string;
   name: string;
@@ -268,58 +230,6 @@ async function remoteRefExists(ref: string): Promise<boolean> {
   } catch {
     return false;
   }
-}
-
-export async function determineDiffScope(
-  instruction?: ReviewInstruction,
-): Promise<{ diffCmd: string; scope: "branch" | "working"; range: string }> {
-  if (instruction?.type === "ref") {
-    const range = `${instruction.ref}...HEAD`;
-    return { diffCmd: `git diff ${range}`, scope: "branch", range };
-  }
-
-  if (instruction?.type === "staged") {
-    return { diffCmd: "git diff --cached", scope: "working", range: "--cached" };
-  }
-
-  const branch = await getCurrentBranch();
-  const onMain = branch === "main" || branch === "master";
-
-  if (instruction?.type === "branch" || (!instruction && !onMain)) {
-    if (!onMain) {
-      const hasOriginMain = await remoteRefExists("origin/main");
-      if (hasOriginMain) {
-        return {
-          diffCmd: "git diff origin/main...HEAD",
-          scope: "branch",
-          range: "origin/main...HEAD",
-        };
-      }
-      const hasOriginMaster = await remoteRefExists("origin/master");
-      if (hasOriginMaster) {
-        return {
-          diffCmd: "git diff origin/master...HEAD",
-          scope: "branch",
-          range: "origin/master...HEAD",
-        };
-      }
-    }
-  }
-
-  const empty = await isDiffEmpty("HEAD");
-  if (empty) {
-    return {
-      diffCmd: "git diff --cached",
-      scope: "working",
-      range: "--cached",
-    };
-  }
-
-  return {
-    diffCmd: "git diff HEAD",
-    scope: "working",
-    range: "HEAD",
-  };
 }
 
 function formatTimestamp(d: Date): string {

@@ -4,7 +4,7 @@ import type { RalphOptions } from "../../src/agent.js";
 const mocks = vi.hoisted(() => ({
   runAgent: vi.fn(),
   runAgentsParallel: vi.fn(),
-  determineDiffScope: vi.fn(),
+  resolveReviewTarget: vi.fn(),
   isDiffEmpty: vi.fn(),
   getCurrentBranch: vi.fn(),
   getDiffStat: vi.fn(),
@@ -25,7 +25,7 @@ vi.mock("../../src/agent.js", () => ({
 }));
 
 vi.mock("../../src/git.js", () => ({
-  determineDiffScope: mocks.determineDiffScope,
+  resolveReviewTarget: mocks.resolveReviewTarget,
   isDiffEmpty: mocks.isDiffEmpty,
   getCurrentBranch: mocks.getCurrentBranch,
   getDiffStat: mocks.getDiffStat,
@@ -64,10 +64,11 @@ const defaultOptions: RalphOptions = {
 const agentConfig = { name: "claude", command: "claude", args: ["-p"] };
 
 function setupDefaults() {
-  mocks.determineDiffScope.mockResolvedValue({
+  mocks.resolveReviewTarget.mockResolvedValue({
     diffCmd: "git diff origin/main...HEAD",
     scope: "branch",
     range: "origin/main...HEAD",
+    description: "auto-detected",
   });
   mocks.isDiffEmpty.mockResolvedValue(false);
   mocks.getCurrentBranch.mockResolvedValue("feature-branch");
@@ -117,9 +118,9 @@ describe("runReview", () => {
     expect(mocks.printError).toHaveBeenCalledWith("no changes to review");
   });
 
-  it("forwards instruction to determineDiffScope", async () => {
-    await runReview(agentConfig, defaultOptions, { type: "working" });
-    expect(mocks.determineDiffScope).toHaveBeenCalledWith({ type: "working" });
+  it("forwards target to resolveReviewTarget", async () => {
+    await runReview(agentConfig, defaultOptions, { type: "staged" });
+    expect(mocks.resolveReviewTarget).toHaveBeenCalledWith({ type: "staged" });
   });
 
   it("runs all 3 phases in order", async () => {
@@ -220,14 +221,15 @@ describe("runReview", () => {
     expect(mocks.printHeader).toHaveBeenCalledWith("code review");
     expect(mocks.printKv).toHaveBeenCalledWith("agent", "claude");
     expect(mocks.printKv).toHaveBeenCalledWith("branch", "feature-branch");
-    expect(mocks.printKv).toHaveBeenCalledWith("scope", "branch");
+    expect(mocks.printKv).toHaveBeenCalledWith("target", "auto-detected");
   });
 
   it("omits commit log for working scope", async () => {
-    mocks.determineDiffScope.mockResolvedValue({
+    mocks.resolveReviewTarget.mockResolvedValue({
       diffCmd: "git diff HEAD",
       scope: "working",
       range: "HEAD",
+      description: "auto-detected",
     });
 
     await runReview(agentConfig, defaultOptions);

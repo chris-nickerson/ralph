@@ -159,6 +159,7 @@ const branchContext: CodeReviewContext = {
   diffStat: " src/foo.ts | 10 ++++\n 1 file changed",
   commitLog: "abc1234 add foo\ndef5678 fix bar",
   branch: "feature-x",
+  description: "auto-detected",
 };
 
 const workingContext: CodeReviewContext = {
@@ -167,6 +168,7 @@ const workingContext: CodeReviewContext = {
   diffStat: " src/bar.ts | 3 +++\n 1 file changed",
   commitLog: "",
   branch: "main",
+  description: "auto-detected",
 };
 
 describe("buildSpecialistPrompt", () => {
@@ -212,7 +214,7 @@ describe("buildSynthesisPrompt", () => {
   it("includes review info with scope and branch", async () => {
     const prompt = await buildSynthesisPrompt(outputs, branchContext);
     expect(prompt).toContain("## Review Info");
-    expect(prompt).toContain("**Scope**: branch");
+    expect(prompt).toContain("**Scope**: auto-detected (branch)");
     expect(prompt).toContain("**Branch**: feature-x");
     expect(prompt).toContain("src/foo.ts | 10 ++++");
   });

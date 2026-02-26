@@ -1,13 +1,13 @@
 import { runAgent, runAgentsParallel } from "../agent.js";
 import type { AgentConfig, RalphOptions } from "../agent.js";
 import {
-  determineDiffScope,
+  resolveReviewTarget,
   isDiffEmpty,
   getCurrentBranch,
   getDiffStat,
   getCommitLog,
 } from "../git.js";
-import type { ReviewInstruction } from "../git.js";
+import type { ReviewTarget } from "../git.js";
 import {
   buildSpecialistPrompt,
   buildSynthesisPrompt,
@@ -34,9 +34,9 @@ const SPECIALIST_LABELS = [
 export async function runReview(
   config: AgentConfig,
   options: RalphOptions,
-  instruction?: ReviewInstruction,
+  target: ReviewTarget = { type: "auto" },
 ): Promise<void> {
-  const { diffCmd, scope, range } = await determineDiffScope(instruction);
+  const { diffCmd, scope, range, description } = await resolveReviewTarget(target);
 
   const empty = await isDiffEmpty(range);
   if (empty) {
@@ -48,13 +48,13 @@ export async function runReview(
   const diffStat = await getDiffStat(range);
   const commitLog = scope === "branch" ? await getCommitLog(range) : "";
 
-  const context: CodeReviewContext = { diffCmd, scope, diffStat, commitLog, branch };
+  const context: CodeReviewContext = { diffCmd, scope, diffStat, commitLog, branch, description };
 
   printHeader("code review");
   console.log("");
   printKv("agent", options.agent);
   printKv("branch", branch);
-  printKv("scope", scope);
+  printKv("target", description);
   printKv("diff", diffCmd);
 
   const startTime = Date.now();

@@ -127,19 +127,20 @@ program
   });
 
 program
-  .command("review")
+  .command("review [target]")
   .description("Parallel code review with specialist agents")
-  .option("--scope <type>", "Diff scope: branch or working (auto-detected if omitted)")
-  .action(async (cmdOpts) => {
+  .option("-s, --staged", "Review staged changes only")
+  .action(async (target: string | undefined, cmdOpts) => {
     const options = makeOptions(program);
     const config = validateAgent(options.agent);
     checkAgentInstalled(config);
     const { runReview } = await import("./commands/review.js");
-    const { parseReviewInstruction } = await import("./git.js");
-    const instruction = cmdOpts.scope
-      ? parseReviewInstruction(cmdOpts.scope)
-      : undefined;
-    await runReview(config, options, instruction);
+    const { parseReviewTarget } = await import("./git.js");
+    const reviewTarget = parseReviewTarget(
+      [target].filter(Boolean) as string[],
+      { staged: cmdOpts.staged ?? false },
+    );
+    await runReview(config, options, reviewTarget);
   });
 
 program

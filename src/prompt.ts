@@ -107,6 +107,7 @@ export interface CodeReviewContext {
   diffStat: string;
   commitLog: string;
   branch: string;
+  description: string;
 }
 
 export async function buildSpecialistPrompt(
@@ -133,7 +134,7 @@ export async function buildSynthesisPrompt(
   let prompt = await loadPrompt("cr_synthesize.md");
 
   prompt += "\n\n## Review Info\n\n";
-  prompt += `- **Scope**: ${context.scope}\n`;
+  prompt += `- **Scope**: ${context.description} (${context.scope})\n`;
   prompt += `- **Branch**: ${context.branch}\n`;
   prompt += `\n### File Change Summary\n${context.diffStat}\n`;
 

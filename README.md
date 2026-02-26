@@ -42,8 +42,11 @@ ralph build -n            # Keep changes uncommitted
 ralph build -d            # Run agent in foreground (see output in real-time)
 ralph build -t 300        # Set per-agent-invocation timeout to 300 seconds (0 = none)
 ralph review              # Parallel code review (auto-detects diff scope)
-ralph review --scope branch   # Force branch diff (against origin/main)
-ralph review --scope working  # Force working tree diff
+ralph review main         # Review changes since main
+ralph review HEAD~3       # Review last 3 commits
+ralph review --staged     # Review staged changes only
+ralph review abc123^!     # Review a single commit
+ralph review abc..def     # Explicit two-dot range
 ralph update              # Update to latest version
 ```
 
