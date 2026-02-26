@@ -51,6 +51,81 @@ export async function createWorktree(
   return { branch, name, dir };
 }
 
+export async function getCurrentBranch(): Promise<string> {
+  const { stdout } = await execFile("git", ["branch", "--show-current"]);
+  return stdout.trim();
+}
+
+export async function getDiffStat(range: string): Promise<string> {
+  const args = ["diff", "--stat", ...range.split(" ")];
+  const { stdout } = await execFile("git", args);
+  return stdout.trim();
+}
+
+export async function getCommitLog(range: string): Promise<string> {
+  const args = ["log", "--oneline", ...range.split(" ")];
+  const { stdout } = await execFile("git", args);
+  return stdout.trim();
+}
+
+export async function isDiffEmpty(range: string): Promise<boolean> {
+  const args = ["diff", ...range.split(" ")];
+  const { stdout } = await execFile("git", args);
+  return stdout.trim() === "";
+}
+
+async function remoteRefExists(ref: string): Promise<boolean> {
+  try {
+    await execFile("git", ["rev-parse", "--verify", ref]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function determineDiffScope(
+  scopeOverride?: string,
+): Promise<{ diffCmd: string; scope: "branch" | "working"; range: string }> {
+  const branch = await getCurrentBranch();
+  const onMain = branch === "main" || branch === "master";
+
+  if (scopeOverride === "branch" || (!scopeOverride && !onMain)) {
+    if (!onMain) {
+      const hasOriginMain = await remoteRefExists("origin/main");
+      if (hasOriginMain) {
+        return {
+          diffCmd: "git diff origin/main...HEAD",
+          scope: "branch",
+          range: "origin/main...HEAD",
+        };
+      }
+      const hasOriginMaster = await remoteRefExists("origin/master");
+      if (hasOriginMaster) {
+        return {
+          diffCmd: "git diff origin/master...HEAD",
+          scope: "branch",
+          range: "origin/master...HEAD",
+        };
+      }
+    }
+  }
+
+  const empty = await isDiffEmpty("HEAD");
+  if (empty) {
+    return {
+      diffCmd: "git diff --cached",
+      scope: "working",
+      range: "--cached",
+    };
+  }
+
+  return {
+    diffCmd: "git diff HEAD",
+    scope: "working",
+    range: "HEAD",
+  };
+}
+
 function formatTimestamp(d: Date): string {
   const Y = d.getFullYear();
   const M = String(d.getMonth() + 1).padStart(2, "0");
