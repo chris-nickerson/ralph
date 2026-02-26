@@ -97,7 +97,7 @@ export function printLimitReached(
 }
 
 export function printWorktreeNext(
-  action: "merge" | "resume" | "build" | "plan",
+  action: "merge" | "resume" | "build",
   worktreeInfo: WorktreeInfo,
   scriptName: string,
   mode: string,
@@ -113,10 +113,6 @@ export function printWorktreeNext(
       printKv("resume", `cd ${reldir} && ${scriptName} ${mode}`);
       break;
     case "build":
-      printKv("build", `cd ${reldir} && ${scriptName} build`);
-      break;
-    case "plan":
-      printKv("refine", `cd ${reldir} && ${scriptName} refine`);
       printKv("build", `cd ${reldir} && ${scriptName} build`);
       break;
   }
