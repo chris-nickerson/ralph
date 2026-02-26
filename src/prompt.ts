@@ -14,8 +14,12 @@ export async function loadPrompt(filename: string): Promise<string> {
   const filepath = join(getPromptsDir(), filename);
   try {
     return await readFile(filepath, "utf-8");
-  } catch {
-    throw new Error(`prompt file not found: ${filepath}`);
+  } catch (err: unknown) {
+    const code = err instanceof Error && "code" in err ? (err as NodeJS.ErrnoException).code : undefined;
+    if (code === "ENOENT") {
+      throw new Error(`prompt file not found: ${filepath}`);
+    }
+    throw new Error(`failed to read prompt file ${filepath}: ${err instanceof Error ? err.message : err}`);
   }
 }
 

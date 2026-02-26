@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   printHeader: vi.fn(),
   printKv: vi.fn(),
   printWarning: vi.fn(),
+  printError: vi.fn(),
   printWorktreeNext: vi.fn(),
 }));
 
@@ -39,6 +40,7 @@ vi.mock("../../src/ui.js", () => ({
   printHeader: mocks.printHeader,
   printKv: mocks.printKv,
   printWarning: mocks.printWarning,
+  printError: mocks.printError,
   printWorktreeNext: mocks.printWorktreeNext,
   confirm: mocks.confirm,
 }));

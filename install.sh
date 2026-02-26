@@ -44,13 +44,15 @@ fi
 
 (cd "$SRC_DIR" && npm prune --omit=dev 2>&1 | tail -1)
 
+STAGE_DIR=$(mktemp -d "$HOME/.ralph-install-XXXXXX")
+cp -r "$SRC_DIR/dist" "$STAGE_DIR/dist"
+cp -r "$SRC_DIR/prompts" "$STAGE_DIR/prompts"
+cp "$SRC_DIR/package.json" "$STAGE_DIR/package.json"
+cp -r "$SRC_DIR/node_modules" "$STAGE_DIR/node_modules"
+chmod +x "$STAGE_DIR/dist/cli.js"
+
 rm -rf "$INSTALL_DIR"
-mkdir -p "$INSTALL_DIR"
-cp -r "$SRC_DIR/dist" "$INSTALL_DIR/dist"
-cp -r "$SRC_DIR/prompts" "$INSTALL_DIR/prompts"
-cp "$SRC_DIR/package.json" "$INSTALL_DIR/package.json"
-cp -r "$SRC_DIR/node_modules" "$INSTALL_DIR/node_modules"
-chmod +x "$INSTALL_DIR/dist/cli.js"
+mv "$STAGE_DIR" "$INSTALL_DIR"
 
 mkdir -p "$BIN_DIR"
 ln -sf "$INSTALL_DIR/dist/cli.js" "$BIN_DIR/ralph"

@@ -80,7 +80,8 @@ describe("runAgent", () => {
       stdout: EventEmitter;
       stderr: EventEmitter;
     };
-    child.stdin = { write: vi.fn(), end: vi.fn() };
+    const stdinEmitter = new EventEmitter();
+    child.stdin = Object.assign(stdinEmitter, { write: vi.fn(), end: vi.fn() });
     child.stdout = new EventEmitter();
     child.stderr = new EventEmitter();
     (child as any).kill = vi.fn();

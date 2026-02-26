@@ -121,6 +121,7 @@ function spawnAgent(
       callbacks?.onStderr?.(data);
     });
 
+    child.stdin?.on("error", () => {});
     child.stdin?.write(prompt);
     child.stdin?.end();
 

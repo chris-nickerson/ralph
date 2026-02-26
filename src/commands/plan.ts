@@ -14,6 +14,7 @@ import {
   printHeader,
   printKv,
   printWarning,
+  printError,
   printWorktreeNext,
   confirm,
 } from "../ui.js";
@@ -71,6 +72,7 @@ export async function runPlan(
   const elapsed = Math.floor((Date.now() - startTime) / 1000);
 
   if (!(await hasContent("IMPLEMENTATION_PLAN.md"))) {
+    printError("agent did not create a plan");
     process.exit(1);
   }
 
