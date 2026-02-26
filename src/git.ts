@@ -5,6 +5,155 @@ import { promisify } from "node:util";
 
 const execFile = promisify(execFileCb);
 
+export type ReviewTarget =
+  | { type: "auto" }
+  | { type: "staged" }
+  | { type: "range"; range: string }
+  | { type: "ref"; ref: string }
+  | { type: "commit"; ref: string };
+
+export interface DiffScope {
+  diffCmd: string;
+  scope: "branch" | "working";
+  range: string;
+  description: string;
+}
+
+export function parseReviewTarget(
+  args: string[],
+  flags: { staged: boolean },
+): ReviewTarget {
+  if (flags.staged && args.length > 0) {
+    throw new Error("--staged cannot be combined with a positional target");
+  }
+
+  if (flags.staged) {
+    return { type: "staged" };
+  }
+
+  if (args.length === 0) {
+    return { type: "auto" };
+  }
+
+  if (args.length > 1) {
+    throw new Error(
+      "expected a single ref or range (e.g. HEAD~3, main..feature, abc123^!)",
+    );
+  }
+
+  const arg = args[0];
+
+  if (arg.includes("..")) {
+    return { type: "range", range: arg };
+  }
+
+  if (arg.endsWith("^!")) {
+    return { type: "commit", ref: arg.slice(0, -2) };
+  }
+
+  return { type: "ref", ref: arg };
+}
+
+export async function validateRef(ref: string): Promise<void> {
+  try {
+    await execFile("git", ["rev-parse", "--verify", ref]);
+  } catch {
+    throw new Error(`unknown git ref '${ref}'`);
+  }
+}
+
+export async function getCommitSubject(ref: string): Promise<string> {
+  const { stdout } = await execFile("git", ["log", "-1", "--format=%s", ref]);
+  return stdout.trim();
+}
+
+export async function resolveReviewTarget(
+  target: ReviewTarget,
+): Promise<DiffScope> {
+  if (target.type === "staged") {
+    return {
+      diffCmd: "git diff --cached",
+      scope: "working",
+      range: "--cached",
+      description: "staged changes",
+    };
+  }
+
+  if (target.type === "range") {
+    return {
+      diffCmd: `git diff ${target.range}`,
+      scope: "branch",
+      range: target.range,
+      description: target.range,
+    };
+  }
+
+  if (target.type === "ref") {
+    await validateRef(target.ref);
+    const range = `${target.ref}...HEAD`;
+    return {
+      diffCmd: `git diff ${range}`,
+      scope: "branch",
+      range,
+      description: range,
+    };
+  }
+
+  if (target.type === "commit") {
+    await validateRef(target.ref);
+    const range = `${target.ref}^..${target.ref}`;
+    const shortSha = target.ref.slice(0, 7);
+    const subject = await getCommitSubject(target.ref);
+    return {
+      diffCmd: `git diff ${range}`,
+      scope: "branch",
+      range,
+      description: `commit ${shortSha} (${subject})`,
+    };
+  }
+
+  const branch = await getCurrentBranch();
+  const onMain = branch === "main" || branch === "master";
+
+  if (!onMain) {
+    const hasOriginMain = await remoteRefExists("origin/main");
+    if (hasOriginMain) {
+      return {
+        diffCmd: "git diff origin/main...HEAD",
+        scope: "branch",
+        range: "origin/main...HEAD",
+        description: "auto-detected",
+      };
+    }
+    const hasOriginMaster = await remoteRefExists("origin/master");
+    if (hasOriginMaster) {
+      return {
+        diffCmd: "git diff origin/master...HEAD",
+        scope: "branch",
+        range: "origin/master...HEAD",
+        description: "auto-detected",
+      };
+    }
+  }
+
+  const empty = await isDiffEmpty("HEAD");
+  if (empty) {
+    return {
+      diffCmd: "git diff --cached",
+      scope: "working",
+      range: "--cached",
+      description: "auto-detected",
+    };
+  }
+
+  return {
+    diffCmd: "git diff HEAD",
+    scope: "working",
+    range: "HEAD",
+    description: "auto-detected",
+  };
+}
+
 export type ReviewInstruction =
   | { type: "ref"; ref: string }
   | { type: "staged" }
