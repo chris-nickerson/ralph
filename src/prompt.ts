@@ -100,3 +100,63 @@ export async function loadRefinePrompt(
     phase === "investigate" ? "refine_investigate.md" : "refine_review.md";
   return loadPrompt(filename);
 }
+
+export interface CodeReviewContext {
+  diffCmd: string;
+  scope: "branch" | "working";
+  diffStat: string;
+  commitLog: string;
+  branch: string;
+}
+
+export async function buildSpecialistPrompt(
+  index: 1 | 2 | 3 | 4,
+  context: CodeReviewContext,
+): Promise<string> {
+  let prompt = await loadPrompt(`cr_specialist_${index}.md`);
+
+  prompt += "\n\n## Review Context\n\n";
+  prompt += `Run this command to get the diff: \`${context.diffCmd}\`\n`;
+  prompt += `\n### File Change Summary\n${context.diffStat}\n`;
+
+  if (context.scope === "branch" && context.commitLog) {
+    prompt += `\n### Commit History\n${context.commitLog}\n`;
+  }
+
+  return prompt;
+}
+
+export async function buildSynthesisPrompt(
+  specialistOutputs: Array<{ label: string; output: string }>,
+  context: CodeReviewContext,
+): Promise<string> {
+  let prompt = await loadPrompt("cr_synthesize.md");
+
+  prompt += "\n\n## Review Info\n\n";
+  prompt += `- **Scope**: ${context.scope}\n`;
+  prompt += `- **Branch**: ${context.branch}\n`;
+  prompt += `\n### File Change Summary\n${context.diffStat}\n`;
+
+  prompt += "\n## Specialist Outputs\n";
+  for (const s of specialistOutputs) {
+    prompt += `\n### ${s.label}\n${s.output}\n`;
+  }
+
+  return prompt;
+}
+
+export async function buildVerificationPrompt(
+  synthesizedReview: string,
+  context: CodeReviewContext,
+): Promise<string> {
+  let prompt = await loadPrompt("cr_verify.md");
+
+  prompt += "\n\n## Synthesized Review to Verify\n";
+  prompt += synthesizedReview;
+
+  prompt += "\n\n## Verification Context\n\n";
+  prompt += `Run this command to get the diff: \`${context.diffCmd}\`\n`;
+  prompt += `\n### File Change Summary\n${context.diffStat}\n`;
+
+  return prompt;
+}
