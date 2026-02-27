@@ -33,7 +33,7 @@ const SPECIALIST_LABELS = [
   "Security & Perf",
 ] as const;
 
-const SPECIALIST_COLORS = [pc.cyan, pc.blue, pc.magenta, pc.yellow];
+const SPECIALIST_COLORS = [pc.cyan, pc.green, pc.magenta, pc.yellow];
 
 export async function runReview(
   config: AgentConfig,
