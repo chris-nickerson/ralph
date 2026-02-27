@@ -1,4 +1,4 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, writeFile, unlink } from "node:fs/promises";
 
 const PLAN_FILE = "IMPLEMENTATION_PLAN.md";
 const PROGRESS_FILE = "progress.txt";
@@ -31,6 +31,25 @@ export async function clearStateFiles(): Promise<void> {
 
 export async function saveReview(content: string): Promise<void> {
   await writeFile(REVIEW_FILE, content);
+}
+
+export const CLEANUP_FILES = [PLAN_FILE, PROGRESS_FILE, "GOAL.md", REVIEW_FILE];
+
+export async function deleteStateFiles(files: string[]): Promise<string[]> {
+  const deleted: string[] = [];
+  for (const file of files) {
+    try {
+      await unlink(file);
+      deleted.push(file);
+    } catch (err: unknown) {
+      const code =
+        err instanceof Error && "code" in err
+          ? (err as NodeJS.ErrnoException).code
+          : undefined;
+      if (code !== "ENOENT") throw err;
+    }
+  }
+  return deleted;
 }
 
 export async function loadReview(): Promise<string> {
