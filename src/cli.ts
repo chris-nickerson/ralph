@@ -8,6 +8,8 @@ import { createWorktree, getRepoRoot } from "./git.js";
 import type { WorktreeInfo } from "./git.js";
 import { dim, printError, printWarning } from "./ui.js";
 
+process.title = "ralph";
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(
   readFileSync(join(__dirname, "..", "package.json"), "utf-8"),
