@@ -1,3 +1,4 @@
+import pc from "picocolors";
 import { runAgent, runAgentsParallel } from "../agent.js";
 import type { AgentConfig, RalphOptions } from "../agent.js";
 import {
@@ -31,6 +32,8 @@ const SPECIALIST_LABELS = [
   "Test Quality",
   "Security & Perf",
 ] as const;
+
+const SPECIALIST_COLORS = [pc.cyan, pc.blue, pc.magenta, pc.yellow];
 
 export async function runReview(
   config: AgentConfig,
@@ -72,7 +75,7 @@ export async function runReview(
     label: SPECIALIST_LABELS[i],
   }));
 
-  const results = await runAgentsParallel(tasks, config, options, startTime);
+  const results = await runAgentsParallel(tasks, config, options, startTime, SPECIALIST_COLORS);
 
   const successful = results.filter((r) => r.exitCode === 0 && r.output);
   const failed = results.filter((r) => r.exitCode !== 0 || !r.output);
