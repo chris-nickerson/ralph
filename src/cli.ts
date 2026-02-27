@@ -162,6 +162,15 @@ program
     await runUpdate();
   });
 
+program
+  .command("cleanup")
+  .description("Remove ralph temp files")
+  .action(async () => {
+    const options = makeOptions(program);
+    const { runCleanup } = await import("./commands/cleanup.js");
+    await runCleanup({ force: options.force });
+  });
+
 program.exitOverride();
 
 try {

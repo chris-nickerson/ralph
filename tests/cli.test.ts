@@ -39,6 +39,7 @@ describe("CLI --help", () => {
     expect(stdout).toContain("refine");
     expect(stdout).toContain("build");
     expect(stdout).toContain("update");
+    expect(stdout).toContain("cleanup");
   });
 
   it("shows all global options", async () => {
@@ -97,6 +98,12 @@ describe("CLI argument parsing", () => {
     const { stdout } = await runCli(["update", "--help"]);
     expect(stdout).toContain("update");
     expect(stdout).toContain("Update to latest version");
+  });
+
+  it("cleanup command has no arguments", async () => {
+    const { stdout } = await runCli(["cleanup", "--help"]);
+    expect(stdout).toContain("cleanup");
+    expect(stdout).toContain("Remove ralph temp files");
   });
 
   it("rejects unknown options", async () => {
