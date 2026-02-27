@@ -31,7 +31,7 @@ After review and any fixes:
 
 ```bash
 git add -A
-git reset HEAD -- progress.txt IMPLEMENTATION_PLAN.md GOAL.md 2>/dev/null || true
+git reset HEAD -- progress.txt IMPLEMENTATION_PLAN.md GOAL.md REVIEW.md 2>/dev/null || true
 git commit -m "type: description"
 ```
 

@@ -20,9 +20,8 @@ After fixing and validating:
 
 ```bash
 git add -A
+git reset HEAD -- progress.txt IMPLEMENTATION_PLAN.md GOAL.md REVIEW.md 2>/dev/null || true
 git commit -m "fix: address code review findings"
 ```
-
-**Do NOT include:** `REVIEW.md`, `IMPLEMENTATION_PLAN.md`, `progress.txt`, or other Ralph infrastructure files in the commit.
 
 **Do NOT add co-author lines** or AI attribution to the commit message.

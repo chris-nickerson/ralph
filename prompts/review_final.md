@@ -35,7 +35,7 @@ If fixes were made:
 
 ```bash
 git add -A
-git reset HEAD -- progress.txt IMPLEMENTATION_PLAN.md GOAL.md 2>/dev/null || true
+git reset HEAD -- progress.txt IMPLEMENTATION_PLAN.md GOAL.md REVIEW.md 2>/dev/null || true
 git commit -m "fix: final review corrections"
 ```
 
