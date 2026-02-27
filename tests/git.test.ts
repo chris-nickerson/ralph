@@ -180,6 +180,17 @@ describe("isDiffEmpty", () => {
     const { isDiffEmpty } = await import("../src/git.js");
     expect(await isDiffEmpty("HEAD")).toBe(false);
   });
+
+  it("re-throws unexpected git errors", async () => {
+    vi.doMock("node:child_process", () => ({
+      execFile: mockExecFileError(
+        () => Object.assign(new Error("fatal: bad revision"), { code: 128 }),
+      ),
+    }));
+
+    const { isDiffEmpty } = await import("../src/git.js");
+    await expect(isDiffEmpty("bogus")).rejects.toThrow("fatal: bad revision");
+  });
 });
 
 describe("parseReviewTarget", () => {
