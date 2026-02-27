@@ -332,6 +332,45 @@ describe("getCommitSubject", () => {
   });
 });
 
+describe("getDefaultBranch", () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("returns parsed branch name from symbolic-ref", async () => {
+    vi.doMock("node:child_process", () => ({
+      execFile: mockExecFile((cmd, args) => {
+        expect(args).toEqual([
+          "symbolic-ref",
+          "refs/remotes/origin/HEAD",
+        ]);
+        return {
+          stdout: "refs/remotes/origin/develop\n",
+          stderr: "",
+        };
+      }),
+    }));
+
+    const { getDefaultBranch } = await import("../src/git.js");
+    expect(await getDefaultBranch()).toBe("develop");
+  });
+
+  it("returns null when symbolic-ref fails", async () => {
+    vi.doMock("node:child_process", () => ({
+      execFile: mockExecFileError(
+        () => new Error("ref not set"),
+      ),
+    }));
+
+    const { getDefaultBranch } = await import("../src/git.js");
+    expect(await getDefaultBranch()).toBeNull();
+  });
+});
+
 describe("resolveReviewTarget", () => {
   beforeEach(() => {
     vi.resetModules();
@@ -561,6 +600,53 @@ describe("resolveReviewTarget", () => {
       diffCmd: "git diff --cached",
       scope: "working",
       range: "--cached",
+      description: "auto-detected",
+    });
+  });
+
+  it("auto-detects non-standard base branch via symbolic-ref", async () => {
+    vi.doMock("node:child_process", () => ({
+      execFile: mockExecFile((cmd, args) => {
+        if (args[0] === "branch") return { stdout: "feature/x\n", stderr: "" };
+        if (args[0] === "symbolic-ref")
+          return {
+            stdout: "refs/remotes/origin/develop\n",
+            stderr: "",
+          };
+        return { stdout: "", stderr: "" };
+      }),
+    }));
+
+    const { resolveReviewTarget } = await import("../src/git.js");
+    const result = await resolveReviewTarget({ type: "auto" });
+    expect(result).toEqual({
+      diffCmd: "git diff origin/develop...HEAD",
+      scope: "branch",
+      range: "origin/develop...HEAD",
+      description: "auto-detected",
+    });
+  });
+
+  it("auto-detects working diff when on dynamically detected base branch", async () => {
+    vi.doMock("node:child_process", () => ({
+      execFile: mockExecFile((cmd, args) => {
+        if (args[0] === "branch") return { stdout: "develop\n", stderr: "" };
+        if (args[0] === "symbolic-ref")
+          return {
+            stdout: "refs/remotes/origin/develop\n",
+            stderr: "",
+          };
+        if (args[0] === "diff") return { stdout: "some changes\n", stderr: "" };
+        return { stdout: "", stderr: "" };
+      }),
+    }));
+
+    const { resolveReviewTarget } = await import("../src/git.js");
+    const result = await resolveReviewTarget({ type: "auto" });
+    expect(result).toEqual({
+      diffCmd: "git diff HEAD",
+      scope: "working",
+      range: "HEAD",
       description: "auto-detected",
     });
   });

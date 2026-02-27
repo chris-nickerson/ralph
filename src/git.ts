@@ -75,6 +75,19 @@ export async function getCommitSubject(ref: string): Promise<string> {
   }
 }
 
+export async function getDefaultBranch(): Promise<string | null> {
+  try {
+    const { stdout } = await execFile("git", [
+      "symbolic-ref",
+      "refs/remotes/origin/HEAD",
+    ]);
+    const ref = stdout.trim().replace("refs/remotes/origin/", "");
+    return ref || null;
+  } catch {
+    return null;
+  }
+}
+
 export async function resolveReviewTarget(
   target: ReviewTarget,
 ): Promise<DiffScope> {
@@ -125,26 +138,39 @@ export async function resolveReviewTarget(
   }
 
   const branch = await getCurrentBranch();
-  const onMain = branch === "main" || branch === "master";
+  const baseBranch = await getDefaultBranch();
 
-  if (!onMain) {
-    const hasOriginMain = await remoteRefExists("origin/main");
-    if (hasOriginMain) {
+  if (baseBranch !== null) {
+    if (branch !== baseBranch) {
+      const range = `origin/${baseBranch}...HEAD`;
       return {
-        diffCmd: "git diff origin/main...HEAD",
+        diffCmd: `git diff ${range}`,
         scope: "branch",
-        range: "origin/main...HEAD",
+        range,
         description: "auto-detected",
       };
     }
-    const hasOriginMaster = await remoteRefExists("origin/master");
-    if (hasOriginMaster) {
-      return {
-        diffCmd: "git diff origin/master...HEAD",
-        scope: "branch",
-        range: "origin/master...HEAD",
-        description: "auto-detected",
-      };
+  } else {
+    const onMain = branch === "main" || branch === "master";
+    if (!onMain) {
+      const hasOriginMain = await remoteRefExists("origin/main");
+      if (hasOriginMain) {
+        return {
+          diffCmd: "git diff origin/main...HEAD",
+          scope: "branch",
+          range: "origin/main...HEAD",
+          description: "auto-detected",
+        };
+      }
+      const hasOriginMaster = await remoteRefExists("origin/master");
+      if (hasOriginMaster) {
+        return {
+          diffCmd: "git diff origin/master...HEAD",
+          scope: "branch",
+          range: "origin/master...HEAD",
+          description: "auto-detected",
+        };
+      }
     }
   }
 
