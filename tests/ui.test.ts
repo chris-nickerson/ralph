@@ -9,7 +9,7 @@ vi.mock("node:readline", () => ({
   createInterface: mockReadline.createInterface,
 }));
 
-import { formatDuration, line, confirm, MultiSpinner, isUtf8 } from "../src/ui.js";
+import { formatDuration, line, confirm, MultiSpinner, isUtf8, SPINNER_INTERVAL_MS } from "../src/ui.js";
 
 describe("line", () => {
   it("returns 74 dashes", () => {
@@ -309,6 +309,48 @@ describe("MultiSpinner", () => {
       spinner.stop();
       const output = allOutput();
       expect(output).not.toContain("\x1b[");
+    });
+  });
+
+  describe("per-line colors", () => {
+    it("applies color function to spinning lines in TTY mode", () => {
+      const colorFn = vi.fn((s: string) => `[${s}]`);
+      const spinner = new MultiSpinner({
+        labels: ["Alpha", "Beta"],
+        startTime: Date.now(),
+        colors: [colorFn, colorFn],
+        isTTY: true,
+      });
+      spinner.start();
+      vi.advanceTimersByTime(SPINNER_INTERVAL_MS * 2);
+      const output = allOutput();
+      expect(colorFn).toHaveBeenCalled();
+      expect(output).toContain("[");
+      spinner.stop();
+    });
+
+    it("does not apply per-line color after succeed/fail", () => {
+      const colorFn = vi.fn((s: string) => `[${s}]`);
+      const spinner = new MultiSpinner({
+        labels: ["Alpha", "Beta"],
+        startTime: Date.now(),
+        colors: [colorFn, colorFn],
+        isTTY: true,
+      });
+      spinner.start();
+      spinner.succeed(0);
+      spinner.fail(1);
+      colorFn.mockClear();
+      stdoutSpy.mockClear();
+
+      vi.advanceTimersByTime(SPINNER_INTERVAL_MS * 2);
+      const output = allOutput();
+      const successMark = isUtf8 ? "✓" : "done";
+      const failMark = isUtf8 ? "✗" : "fail";
+      expect(output).toContain(successMark);
+      expect(output).toContain(failMark);
+      expect(colorFn).not.toHaveBeenCalled();
+      spinner.stop();
     });
   });
 });

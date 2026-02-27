@@ -16,6 +16,8 @@ export const SYM_CHECK = "done";
 export const SYM_PAUSE = "--";
 export const SYM_BULLET = "*";
 
+export const SPINNER_INTERVAL_MS = 80;
+
 export const dim = isTTY ? pc.dim : (s: string) => s;
 export const bold = isTTY ? pc.bold : (s: string) => s;
 export const green = isTTY ? pc.green : (s: string) => s;
@@ -152,6 +154,7 @@ export interface MultiSpinnerOptions {
   labels: string[];
   startTime: number;
   isTTY?: boolean;
+  colors?: Array<(s: string) => string>;
 }
 
 type LineState = "spinning" | "succeeded" | "failed";
@@ -166,6 +169,7 @@ export class MultiSpinner {
   private frameIndex = 0;
   private maxLabelLen: number;
   private frames: string[];
+  private colors: Array<(s: string) => string>;
 
   constructor(options: MultiSpinnerOptions) {
     this.labels = options.labels;
@@ -175,6 +179,7 @@ export class MultiSpinner {
     this.frozenElapsed = options.labels.map(() => null);
     this.maxLabelLen = Math.max(0, ...options.labels.map((l) => l.length));
     this.frames = isUtf8 ? SPINNER_FRAMES_UTF8 : SPINNER_FRAMES_ASCII;
+    this.colors = options.colors ?? options.labels.map(() => (s: string) => s);
   }
 
   start(): void {
@@ -190,7 +195,7 @@ export class MultiSpinner {
       this.frameIndex = (this.frameIndex + 1) % this.frames.length;
       process.stdout.write(`\x1b[${this.labels.length}A`);
       this.render();
-    }, 500);
+    }, SPINNER_INTERVAL_MS);
   }
 
   succeed(index: number): void {
@@ -244,7 +249,7 @@ export class MultiSpinner {
           prefix = isUtf8 ? red("✗") : red("fail");
           break;
         default:
-          prefix = this.frames[this.frameIndex];
+          prefix = this.colors[i](this.frames[this.frameIndex]);
           break;
       }
       process.stdout.write(`\x1b[2K  ${prefix} ${label}  ${timeStr}\n`);
