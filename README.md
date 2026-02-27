@@ -93,7 +93,6 @@ Use `--no-review` to skip review phases (build agent implements and commits dire
 | `prompts/refine_review.md` | Refine review prompt |
 | `prompts/build.md` | Build prompt (implement task) |
 | `prompts/review.md` | Per-iteration code review prompt |
-| `prompts/review_final.md` | Final comprehensive review prompt |
 | `prompts/cr_specialist_*.md` | Standalone review specialist prompts (1–4) |
 | `prompts/cr_synthesize.md` | Review synthesis prompt |
 | `prompts/cr_verify.md` | Review verification prompt |

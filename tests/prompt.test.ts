@@ -8,7 +8,6 @@ import {
   buildPlanPrompt,
   buildBuildPrompt,
   buildReviewPrompt,
-  buildFinalReviewPrompt,
   buildFixPrompt,
   loadRefinePrompt,
   buildSpecialistPrompt,
@@ -114,31 +113,6 @@ describe("buildReviewPrompt", () => {
     const prompt = await buildReviewPrompt(true);
     expect(prompt).toContain("## Override: No Commits");
     expect(prompt).toContain("Skip the Commit section above entirely");
-  });
-});
-
-describe("buildFinalReviewPrompt", () => {
-  it("includes diff range with commit hash", async () => {
-    const prompt = await buildFinalReviewPrompt("abc123", false);
-    expect(prompt).toContain("## Diff Range");
-    expect(prompt).toContain("git diff abc123..HEAD");
-  });
-
-  it("uses plain diff when no-commit", async () => {
-    const prompt = await buildFinalReviewPrompt("abc123", true);
-    expect(prompt).toContain("git diff abc123");
-    expect(prompt).not.toContain("abc123..HEAD");
-  });
-
-  it("appends no-commit override", async () => {
-    const prompt = await buildFinalReviewPrompt("abc123", true);
-    expect(prompt).toContain("## Override: No Commits");
-    expect(prompt).toContain("Skip the Commit section above entirely");
-  });
-
-  it("skips diff range when no start hash", async () => {
-    const prompt = await buildFinalReviewPrompt("", false);
-    expect(prompt).not.toContain("## Diff Range");
   });
 });
 

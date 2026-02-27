@@ -1,13 +1,10 @@
 import { runAgent } from "../agent.js";
 import type { AgentConfig, RalphOptions } from "../agent.js";
 import type { WorktreeInfo } from "../git.js";
-import { getHeadHash } from "../git.js";
-import {
-  buildBuildPrompt,
-  buildReviewPrompt,
-  buildFinalReviewPrompt,
-} from "../prompt.js";
-import { hasContent, countTasks } from "../state.js";
+import { getHeadHash, getCurrentBranch, getDiffStat, getCommitLog } from "../git.js";
+import { buildBuildPrompt, buildReviewPrompt, buildFixPrompt } from "../prompt.js";
+import type { CodeReviewContext } from "../prompt.js";
+import { hasContent, countTasks, saveReview } from "../state.js";
 import {
   dim,
   green,
@@ -22,6 +19,7 @@ import {
   printWorktreeNext,
   printError,
 } from "../ui.js";
+import { runReviewPipeline } from "./review.js";
 
 const SCRIPT_NAME = "ralph";
 
@@ -122,11 +120,27 @@ export async function runBuild(
       if (!options.noReview) {
         printPhase(iteration, "final review");
 
-        const finalPrompt = await buildFinalReviewPrompt(
-          startHash,
-          options.noCommit,
-        );
-        await runAgent(finalPrompt, config, options, "final review", startTime);
+        const range = options.noCommit ? startHash : `${startHash}..HEAD`;
+        const context: CodeReviewContext = {
+          diffCmd: `git diff ${range}`,
+          scope: "branch",
+          diffStat: await getDiffStat(range),
+          commitLog: options.noCommit ? "" : await getCommitLog(range),
+          branch: await getCurrentBranch(),
+          description: `build (${iteration} iterations)`,
+        };
+
+        const { reviewContent, needsRevision } = await runReviewPipeline(context, config, options, startTime);
+
+        if (reviewContent !== undefined) {
+          await saveReview(reviewContent);
+        }
+
+        if (needsRevision && reviewContent !== undefined) {
+          printPhase(iteration, "fix");
+          const fixPrompt = await buildFixPrompt(reviewContent, undefined, options.noCommit);
+          await runAgent(fixPrompt, config, options, "fixing", startTime);
+        }
       }
 
       const elapsed = Math.floor((Date.now() - startTime) / 1000);

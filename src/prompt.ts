@@ -71,28 +71,6 @@ export async function buildReviewPrompt(noCommit: boolean): Promise<string> {
   return prompt;
 }
 
-export async function buildFinalReviewPrompt(
-  startHash: string,
-  noCommit: boolean,
-): Promise<string> {
-  let prompt = await loadPrompt("review_final.md");
-
-  if (startHash) {
-    prompt += "\n\n## Diff Range\n\n";
-    if (noCommit) {
-      prompt += `Review all changes from the start of this build: \`git diff ${startHash}\``;
-    } else {
-      prompt += `Review all changes from the start of this build: \`git diff ${startHash}..HEAD\``;
-    }
-  }
-
-  if (noCommit) {
-    prompt += NO_COMMIT_OVERRIDE;
-  }
-
-  return prompt;
-}
-
 export async function buildFixPrompt(
   reviewContent: string,
   instructions: string | undefined,

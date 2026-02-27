@@ -5,10 +5,15 @@ const mocks = vi.hoisted(() => ({
   runAgent: vi.fn(),
   hasContent: vi.fn(),
   countTasks: vi.fn(),
+  saveReview: vi.fn(),
   getHeadHash: vi.fn(),
+  getCurrentBranch: vi.fn(),
+  getDiffStat: vi.fn(),
+  getCommitLog: vi.fn(),
   buildBuildPrompt: vi.fn(),
   buildReviewPrompt: vi.fn(),
-  buildFinalReviewPrompt: vi.fn(),
+  buildFixPrompt: vi.fn(),
+  runReviewPipeline: vi.fn(),
   printHeader: vi.fn(),
   printKv: vi.fn(),
   printPhase: vi.fn(),
@@ -25,16 +30,24 @@ vi.mock("../../src/agent.js", () => ({
 vi.mock("../../src/state.js", () => ({
   hasContent: mocks.hasContent,
   countTasks: mocks.countTasks,
+  saveReview: mocks.saveReview,
 }));
 
 vi.mock("../../src/git.js", () => ({
   getHeadHash: mocks.getHeadHash,
+  getCurrentBranch: mocks.getCurrentBranch,
+  getDiffStat: mocks.getDiffStat,
+  getCommitLog: mocks.getCommitLog,
 }));
 
 vi.mock("../../src/prompt.js", () => ({
   buildBuildPrompt: mocks.buildBuildPrompt,
   buildReviewPrompt: mocks.buildReviewPrompt,
-  buildFinalReviewPrompt: mocks.buildFinalReviewPrompt,
+  buildFixPrompt: mocks.buildFixPrompt,
+}));
+
+vi.mock("../../src/commands/review.js", () => ({
+  runReviewPipeline: mocks.runReviewPipeline,
 }));
 
 vi.mock("../../src/ui.js", () => ({
@@ -82,10 +95,15 @@ describe("runBuild", () => {
     mocks.hasContent.mockResolvedValue(true);
     mocks.countTasks.mockResolvedValue(3);
     mocks.getHeadHash.mockResolvedValue("abc123");
+    mocks.getCurrentBranch.mockResolvedValue("test-branch");
+    mocks.getDiffStat.mockResolvedValue("stat");
+    mocks.getCommitLog.mockResolvedValue("log");
+    mocks.saveReview.mockResolvedValue(undefined);
     mocks.buildBuildPrompt.mockResolvedValue("build prompt");
     mocks.buildReviewPrompt.mockResolvedValue("review prompt");
-    mocks.buildFinalReviewPrompt.mockResolvedValue("final review prompt");
+    mocks.buildFixPrompt.mockResolvedValue("fix prompt");
     mocks.runAgent.mockResolvedValue({ output: "done", exitCode: 0 });
+    mocks.runReviewPipeline.mockResolvedValue({ reviewContent: "review output", needsRevision: false, fallback: false });
     mocks.printWorktreeNext.mockReturnValue(true);
   });
 
@@ -181,7 +199,13 @@ describe("runBuild", () => {
     await expect(promise).rejects.toThrow("EXIT");
     expect(exitSpy).toHaveBeenCalledWith(0);
 
-    expect(mocks.buildFinalReviewPrompt).toHaveBeenCalledWith("abc123", false);
+    expect(mocks.runReviewPipeline).toHaveBeenCalledWith(
+      expect.objectContaining({ diffCmd: "git diff abc123..HEAD" }),
+      agentConfig,
+      defaultOptions,
+      expect.any(Number),
+    );
+    expect(mocks.saveReview).toHaveBeenCalledWith("review output");
     expect(mocks.printComplete).toHaveBeenCalled();
   });
 
@@ -202,8 +226,92 @@ describe("runBuild", () => {
     await vi.advanceTimersByTimeAsync(1000);
 
     await expect(promise).rejects.toThrow("EXIT");
-    expect(mocks.buildFinalReviewPrompt).not.toHaveBeenCalled();
+    expect(mocks.runReviewPipeline).not.toHaveBeenCalled();
     expect(mocks.printComplete).toHaveBeenCalled();
+  });
+
+  it("runs fix agent when needsRevision is true", async () => {
+    vi.useFakeTimers();
+
+    let taskCallCount = 0;
+    mocks.countTasks.mockImplementation(async () => {
+      taskCallCount++;
+      if (taskCallCount <= 1) return 1;
+      return 0;
+    });
+
+    mocks.runReviewPipeline.mockResolvedValue({
+      reviewContent: "NEEDS REVISION found",
+      needsRevision: true,
+      fallback: false,
+    });
+
+    const promise = runBuild(10, agentConfig, defaultOptions);
+    promise.catch(() => {});
+
+    await vi.advanceTimersByTimeAsync(1000);
+
+    await expect(promise).rejects.toThrow("EXIT");
+
+    expect(mocks.buildFixPrompt).toHaveBeenCalledWith("NEEDS REVISION found", undefined, false);
+    expect(mocks.runAgent).toHaveBeenCalledWith("fix prompt", agentConfig, defaultOptions, "fixing", expect.any(Number));
+    expect(mocks.printPhase).toHaveBeenCalledWith(1, "fix");
+  });
+
+  it("does not run fix agent when needsRevision is false", async () => {
+    vi.useFakeTimers();
+
+    let taskCallCount = 0;
+    mocks.countTasks.mockImplementation(async () => {
+      taskCallCount++;
+      if (taskCallCount <= 1) return 1;
+      return 0;
+    });
+
+    mocks.runReviewPipeline.mockResolvedValue({
+      reviewContent: "APPROVED - all good",
+      needsRevision: false,
+      fallback: false,
+    });
+
+    const promise = runBuild(10, agentConfig, defaultOptions);
+    promise.catch(() => {});
+
+    await vi.advanceTimersByTimeAsync(1000);
+
+    await expect(promise).rejects.toThrow("EXIT");
+
+    expect(mocks.buildFixPrompt).not.toHaveBeenCalled();
+    expect(mocks.printPhase).not.toHaveBeenCalledWith(expect.anything(), "fix");
+  });
+
+  it("uses plain diff range in --no-commit mode", async () => {
+    vi.useFakeTimers();
+
+    let taskCallCount = 0;
+    mocks.countTasks.mockImplementation(async () => {
+      taskCallCount++;
+      if (taskCallCount <= 1) return 1;
+      return 0;
+    });
+
+    const opts = { ...defaultOptions, noCommit: true };
+    const promise = runBuild(10, agentConfig, opts);
+    promise.catch(() => {});
+
+    await vi.advanceTimersByTimeAsync(1000);
+
+    await expect(promise).rejects.toThrow("EXIT");
+
+    expect(mocks.runReviewPipeline).toHaveBeenCalledWith(
+      expect.objectContaining({
+        diffCmd: "git diff abc123",
+        commitLog: "",
+      }),
+      agentConfig,
+      opts,
+      expect.any(Number),
+    );
   });
 
   it("exits at max iterations", async () => {
