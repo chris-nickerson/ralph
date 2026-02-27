@@ -254,9 +254,10 @@ export async function runAgentsParallel(
     return { output: result.output, exitCode: result.exitCode, label: task.label };
   });
 
-  const results = await Promise.all(promises);
-
-  spinner.stop();
-
-  return results;
+  try {
+    const results = await Promise.all(promises);
+    return results;
+  } finally {
+    spinner.stop();
+  }
 }

@@ -173,7 +173,7 @@ export class MultiSpinner {
     this.tty = options.isTTY ?? isTTY;
     this.states = options.labels.map(() => "spinning" as LineState);
     this.frozenElapsed = options.labels.map(() => null);
-    this.maxLabelLen = Math.max(...options.labels.map((l) => l.length));
+    this.maxLabelLen = Math.max(0, ...options.labels.map((l) => l.length));
     this.frames = isUtf8 ? SPINNER_FRAMES_UTF8 : SPINNER_FRAMES_ASCII;
   }
 

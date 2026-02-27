@@ -496,6 +496,64 @@ describe("runAgentsParallel", () => {
     expect(mockSpinner.stop).toHaveBeenCalledOnce();
   });
 
+  it("treats exit 0 with empty output as failure", async () => {
+    const children = [createMockChild(), createMockChild()];
+    let childIdx = 0;
+    spawnMock = vi.fn().mockImplementation(() => children[childIdx++]);
+
+    vi.doMock("node:child_process", () => ({
+      spawn: spawnMock,
+      execFileSync: vi.fn(),
+    }));
+
+    vi.doMock("ora", () => ({
+      default: () => ({
+        start: vi.fn().mockReturnThis(),
+        stop: vi.fn(),
+        set text(_: string) {},
+      }),
+    }));
+
+    const mockSpinner = { start: vi.fn(), succeed: vi.fn(), fail: vi.fn(), stop: vi.fn() };
+    const MultiSpinnerMock = vi.fn().mockImplementation(() => mockSpinner);
+
+    vi.doMock("../src/ui.js", () => ({
+      isUtf8: false,
+      dim: (s: string) => s,
+      formatDuration: (s: number) => `${s}s`,
+      printWarning: vi.fn(),
+      MultiSpinner: MultiSpinnerMock,
+    }));
+
+    const { runAgentsParallel } = await import("../src/agent.js");
+
+    const tasks = [
+      { prompt: "p1", label: "With Output" },
+      { prompt: "p2", label: "Empty Output" },
+    ];
+
+    const resultPromise = runAgentsParallel(
+      tasks, AGENTS.claude, makeOptions(), Date.now(),
+    );
+
+    await vi.waitFor(() => {
+      expect(spawnMock).toHaveBeenCalledTimes(2);
+    });
+
+    children[0].stdout.emit("data", Buffer.from("some output"));
+    children[0].emit("close", 0);
+    children[1].emit("close", 0);
+
+    const results = await resultPromise;
+
+    expect(results[0]).toEqual({ output: "some output", exitCode: 0, label: "With Output" });
+    expect(results[1]).toEqual({ output: "", exitCode: 0, label: "Empty Output" });
+
+    expect(mockSpinner.succeed).toHaveBeenCalledWith(0);
+    expect(mockSpinner.succeed).not.toHaveBeenCalledWith(1);
+    expect(mockSpinner.fail).toHaveBeenCalledWith(1);
+  });
+
   it("does not write individual agent outputs to stdout", async () => {
     const children = [createMockChild(), createMockChild()];
     let childIdx = 0;
