@@ -83,15 +83,11 @@ const defaultOptions: RalphOptions = {
 const agentConfig = { name: "claude", command: "claude", args: ["-p"] };
 
 describe("runBuild", () => {
-  let exitSpy: ReturnType<typeof vi.spyOn>;
   let consoleSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useRealTimers();
-    exitSpy = vi.spyOn(process, "exit").mockImplementation((() => {
-      throw new Error("EXIT");
-    }) as never);
     consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
     mocks.hasContent.mockResolvedValue(true);
@@ -116,16 +112,16 @@ describe("runBuild", () => {
   it("errors when no plan exists", async () => {
     mocks.hasContent.mockResolvedValue(false);
 
-    await expect(runBuild(10, agentConfig, defaultOptions)).rejects.toThrow("EXIT");
-    expect(exitSpy).toHaveBeenCalledWith(1);
+    const result = await runBuild(10, agentConfig, defaultOptions);
+    expect(result).toEqual({ status: "no_plan", iterations: 0 });
     expect(mocks.printError).toHaveBeenCalledWith("no implementation plan found");
   });
 
   it("exits when 0 tasks at start", async () => {
     mocks.countTasks.mockResolvedValue(0);
 
-    await expect(runBuild(10, agentConfig, defaultOptions)).rejects.toThrow("EXIT");
-    expect(exitSpy).toHaveBeenCalledWith(0);
+    const result = await runBuild(10, agentConfig, defaultOptions);
+    expect(result).toEqual({ status: "no_tasks", iterations: 0 });
   });
 
   it("runs build and review per iteration", async () => {
@@ -134,11 +130,11 @@ describe("runBuild", () => {
     mocks.countTasks.mockResolvedValue(2);
 
     const promise = runBuild(1, agentConfig, defaultOptions);
-    promise.catch(() => {});
 
     await vi.advanceTimersByTimeAsync(1000);
 
-    await expect(promise).rejects.toThrow("EXIT");
+    const result = await promise;
+    expect(result).toEqual({ status: "limit_reached", iterations: 1 });
 
     expect(mocks.buildBuildPrompt).toHaveBeenCalledWith(false, false);
     expect(mocks.buildReviewPrompt).toHaveBeenCalledWith(false);
@@ -155,11 +151,11 @@ describe("runBuild", () => {
     const opts = { ...defaultOptions, noReview: true };
 
     const promise = runBuild(1, agentConfig, opts);
-    promise.catch(() => {});
 
     await vi.advanceTimersByTimeAsync(1000);
 
-    await expect(promise).rejects.toThrow("EXIT");
+    const result = await promise;
+    expect(result).toEqual({ status: "limit_reached", iterations: 1 });
 
     expect(mocks.buildBuildPrompt).toHaveBeenCalledWith(true, false);
     expect(mocks.buildReviewPrompt).not.toHaveBeenCalled();
@@ -173,11 +169,11 @@ describe("runBuild", () => {
     const opts = { ...defaultOptions, noCommit: true };
 
     const promise = runBuild(1, agentConfig, opts);
-    promise.catch(() => {});
 
     await vi.advanceTimersByTimeAsync(1000);
 
-    await expect(promise).rejects.toThrow("EXIT");
+    const result = await promise;
+    expect(result).toEqual({ status: "limit_reached", iterations: 1 });
 
     expect(mocks.buildBuildPrompt).toHaveBeenCalledWith(false, true);
     expect(mocks.buildReviewPrompt).toHaveBeenCalledWith(true);
@@ -194,12 +190,11 @@ describe("runBuild", () => {
     });
 
     const promise = runBuild(10, agentConfig, defaultOptions);
-    promise.catch(() => {});
 
     await vi.advanceTimersByTimeAsync(1000);
 
-    await expect(promise).rejects.toThrow("EXIT");
-    expect(exitSpy).toHaveBeenCalledWith(0);
+    const result = await promise;
+    expect(result).toEqual({ status: "completed", iterations: 1 });
 
     expect(mocks.runReviewPipeline).toHaveBeenCalledWith(
       expect.objectContaining({ diffCmd: "git diff abc123..HEAD" }),
@@ -223,11 +218,11 @@ describe("runBuild", () => {
 
     const opts = { ...defaultOptions, noReview: true };
     const promise = runBuild(10, agentConfig, opts);
-    promise.catch(() => {});
 
     await vi.advanceTimersByTimeAsync(1000);
 
-    await expect(promise).rejects.toThrow("EXIT");
+    const result = await promise;
+    expect(result).toEqual({ status: "completed", iterations: 1 });
     expect(mocks.runReviewPipeline).not.toHaveBeenCalled();
     expect(mocks.printComplete).toHaveBeenCalled();
   });
@@ -249,11 +244,11 @@ describe("runBuild", () => {
     });
 
     const promise = runBuild(10, agentConfig, defaultOptions);
-    promise.catch(() => {});
 
     await vi.advanceTimersByTimeAsync(1000);
 
-    await expect(promise).rejects.toThrow("EXIT");
+    const result = await promise;
+    expect(result).toEqual({ status: "completed", iterations: 1 });
 
     expect(mocks.buildFixPrompt).toHaveBeenCalledWith("NEEDS REVISION found", undefined, false);
     expect(mocks.runAgent).toHaveBeenCalledWith("fix prompt", agentConfig, defaultOptions, "fixing", expect.any(Number));
@@ -277,11 +272,11 @@ describe("runBuild", () => {
     });
 
     const promise = runBuild(10, agentConfig, defaultOptions);
-    promise.catch(() => {});
 
     await vi.advanceTimersByTimeAsync(1000);
 
-    await expect(promise).rejects.toThrow("EXIT");
+    const result = await promise;
+    expect(result).toEqual({ status: "completed", iterations: 1 });
 
     expect(mocks.buildFixPrompt).not.toHaveBeenCalled();
     expect(mocks.printPhase).not.toHaveBeenCalledWith(expect.anything(), "fix");
@@ -299,11 +294,11 @@ describe("runBuild", () => {
 
     const opts = { ...defaultOptions, noCommit: true };
     const promise = runBuild(10, agentConfig, opts);
-    promise.catch(() => {});
 
     await vi.advanceTimersByTimeAsync(1000);
 
-    await expect(promise).rejects.toThrow("EXIT");
+    const result = await promise;
+    expect(result).toEqual({ status: "completed", iterations: 1 });
 
     expect(mocks.runReviewPipeline).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -322,13 +317,12 @@ describe("runBuild", () => {
     mocks.countTasks.mockResolvedValue(5);
 
     const promise = runBuild(2, agentConfig, defaultOptions);
-    promise.catch(() => {});
 
     await vi.advanceTimersByTimeAsync(1000);
     await vi.advanceTimersByTimeAsync(1000);
 
-    await expect(promise).rejects.toThrow("EXIT");
-    expect(exitSpy).toHaveBeenCalledWith(0);
+    const result = await promise;
+    expect(result).toEqual({ status: "limit_reached", iterations: 2 });
     expect(mocks.printLimitReached).toHaveBeenCalledWith(2, "ralph", "build", false);
   });
 
@@ -345,18 +339,19 @@ describe("runBuild", () => {
     const worktreeInfo = { branch: "ralph/build-20260224", name: "repo-ralph-120000", dir: "/tmp/repo-ralph-120000" };
 
     const promise = runBuild(10, agentConfig, defaultOptions, worktreeInfo);
-    promise.catch(() => {});
 
     await vi.advanceTimersByTimeAsync(1000);
 
-    await expect(promise).rejects.toThrow("EXIT");
+    const result = await promise;
+    expect(result).toEqual({ status: "completed", iterations: 1 });
     expect(mocks.printWorktreeNext).toHaveBeenCalledWith("merge", worktreeInfo, "ralph", "build");
   });
 
   it("prints header and config info", async () => {
     mocks.countTasks.mockResolvedValue(0);
 
-    await expect(runBuild(10, agentConfig, defaultOptions)).rejects.toThrow("EXIT");
+    const result = await runBuild(10, agentConfig, defaultOptions);
+    expect(result).toEqual({ status: "no_tasks", iterations: 0 });
 
     expect(mocks.printHeader).toHaveBeenCalledWith("building");
     expect(mocks.printKv).toHaveBeenCalledWith("agent", "claude");
@@ -368,7 +363,8 @@ describe("runBuild", () => {
     mocks.countTasks.mockResolvedValue(0);
     const opts = { ...defaultOptions, noReview: true, noCommit: true };
 
-    await expect(runBuild(10, agentConfig, opts)).rejects.toThrow("EXIT");
+    const result = await runBuild(10, agentConfig, opts);
+    expect(result).toEqual({ status: "no_tasks", iterations: 0 });
 
     expect(mocks.printKv).toHaveBeenCalledWith("review", "off");
     expect(mocks.printKv).toHaveBeenCalledWith("commit", "off");
@@ -383,12 +379,12 @@ describe("runBuild", () => {
       .mockResolvedValueOnce({ output: "done", exitCode: 0 });
 
     const promise = runBuild(2, agentConfig, defaultOptions);
-    promise.catch(() => {});
 
     await vi.advanceTimersByTimeAsync(1000);
     await vi.advanceTimersByTimeAsync(1000);
 
-    await expect(promise).rejects.toThrow("EXIT");
+    const result = await promise;
+    expect(result).toEqual({ status: "limit_reached", iterations: 2 });
 
     expect(mocks.runAgent).toHaveBeenCalledTimes(3);
     expect(mocks.buildReviewPrompt).toHaveBeenCalledTimes(1);
@@ -408,23 +404,22 @@ describe("runBuild", () => {
       .mockResolvedValueOnce({ output: "", exitCode: 1 });
 
     const promise = runBuild(5, agentConfig, opts);
-    promise.catch(() => {});
 
     for (let i = 0; i < 5; i++) await vi.advanceTimersByTimeAsync(1000);
 
-    await expect(promise).rejects.toThrow("EXIT");
+    const result = await promise;
+    expect(result).toEqual({ status: "limit_reached", iterations: 5 });
 
     expect(mocks.printError).not.toHaveBeenCalledWith(
       "agent failed 3 times consecutively; stopping",
     );
-    expect(exitSpy).toHaveBeenCalledWith(0);
   });
 
   it("exits when getHeadHash returns empty string", async () => {
     mocks.getHeadHash.mockResolvedValue("");
 
-    await expect(runBuild(10, agentConfig, defaultOptions)).rejects.toThrow("EXIT");
-    expect(exitSpy).toHaveBeenCalledWith(1);
+    const result = await runBuild(10, agentConfig, defaultOptions);
+    expect(result).toEqual({ status: "no_head", iterations: 0 });
     expect(mocks.printError).toHaveBeenCalledWith("unable to resolve HEAD — is this a valid git repository?");
   });
 
@@ -445,12 +440,11 @@ describe("runBuild", () => {
     });
 
     const promise = runBuild(10, agentConfig, defaultOptions);
-    promise.catch(() => {});
 
     await vi.advanceTimersByTimeAsync(1000);
 
-    await expect(promise).rejects.toThrow("EXIT");
-    expect(exitSpy).toHaveBeenCalledWith(0);
+    const result = await promise;
+    expect(result).toEqual({ status: "completed", iterations: 1 });
 
     expect(mocks.printWarning).toHaveBeenCalledWith("all reviewers failed — skipping review");
     expect(mocks.saveReview).not.toHaveBeenCalled();
@@ -465,15 +459,14 @@ describe("runBuild", () => {
     mocks.runAgent.mockResolvedValue({ output: "", exitCode: 1 });
 
     const promise = runBuild(10, agentConfig, defaultOptions);
-    promise.catch(() => {});
 
     await vi.advanceTimersByTimeAsync(1000);
     await vi.advanceTimersByTimeAsync(1000);
     await vi.advanceTimersByTimeAsync(1000);
 
-    await expect(promise).rejects.toThrow("EXIT");
+    const result = await promise;
+    expect(result).toEqual({ status: "agent_failed", iterations: 3 });
 
-    expect(exitSpy).toHaveBeenCalledWith(1);
     expect(mocks.runAgent).toHaveBeenCalledTimes(3);
     expect(mocks.printError).toHaveBeenCalledWith("agent failed 3 times consecutively; stopping");
   });

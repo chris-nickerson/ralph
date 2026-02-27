@@ -22,6 +22,11 @@ import {
 } from "../ui.js";
 import { runReviewPipeline } from "./review.js";
 
+export interface BuildResult {
+  status: "completed" | "limit_reached" | "no_tasks" | "no_plan" | "no_head" | "agent_failed";
+  iterations: number;
+}
+
 const SCRIPT_NAME = "ralph";
 
 function sleep(ms: number): Promise<void> {
@@ -33,14 +38,14 @@ export async function runBuild(
   config: AgentConfig,
   options: RalphOptions,
   worktreeInfo?: WorktreeInfo,
-): Promise<void> {
+): Promise<BuildResult> {
   if (!(await hasContent("IMPLEMENTATION_PLAN.md"))) {
     printError("no implementation plan found");
     console.log("");
     console.log(`  ${dim("Create a plan first:")}`);
     console.log(`  ${SCRIPT_NAME} plan "your goal"`);
     console.log("");
-    process.exit(1);
+    return { status: "no_plan", iterations: 0 };
   }
 
   let taskCount = await countTasks();
@@ -66,13 +71,13 @@ export async function runBuild(
     if (worktreeInfo) {
       printWorktreeNext("merge", worktreeInfo, SCRIPT_NAME, "build");
     }
-    process.exit(0);
+    return { status: "no_tasks", iterations: 0 };
   }
 
   const startHash = await getHeadHash();
   if (!startHash) {
     printError("unable to resolve HEAD — is this a valid git repository?");
-    process.exit(1);
+    return { status: "no_head", iterations: 0 };
   }
   const startTime = Date.now();
   let iteration = 0;
@@ -86,7 +91,7 @@ export async function runBuild(
       if (worktreeInfo) {
         printWorktreeNext("resume", worktreeInfo, SCRIPT_NAME, "build");
       }
-      process.exit(0);
+      return { status: "limit_reached", iterations: iteration - 1 };
     }
 
     const iterStart = Date.now();
@@ -102,7 +107,7 @@ export async function runBuild(
       consecutiveFailures++;
       if (consecutiveFailures >= 3) {
         printError("agent failed 3 times consecutively; stopping");
-        process.exit(1);
+        return { status: "agent_failed", iterations: iteration };
       }
       await sleep(1000);
       continue;
@@ -155,7 +160,7 @@ export async function runBuild(
       if (worktreeInfo) {
         printWorktreeNext("merge", worktreeInfo, SCRIPT_NAME, "build");
       }
-      process.exit(0);
+      return { status: "completed", iterations: iteration };
     }
 
     await sleep(1000);

@@ -124,8 +124,9 @@ program
       ? await setupWorktree("build")
       : undefined;
     const { runBuild } = await import("./commands/build.js");
-    await runBuild(max, config, options, wt);
+    const result = await runBuild(max, config, options, wt);
     worktreeDone = true;
+    process.exit(result.status === "completed" || result.status === "limit_reached" || result.status === "no_tasks" ? 0 : 1);
   });
 
 program
