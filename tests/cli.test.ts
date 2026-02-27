@@ -87,6 +87,12 @@ describe("CLI argument parsing", () => {
     expect(stdout).not.toContain("--scope");
   });
 
+  it("fix command accepts instructions argument", async () => {
+    const { stdout } = await runCli(["fix", "--help"]);
+    expect(stdout).toContain("[instructions]");
+    expect(stdout).toContain("Fix issues from code review");
+  });
+
   it("update command has no arguments", async () => {
     const { stdout } = await runCli(["update", "--help"]);
     expect(stdout).toContain("update");

@@ -144,6 +144,17 @@ program
   });
 
 program
+  .command("fix [instructions]")
+  .description("Fix issues from code review")
+  .action(async (instructions: string | undefined) => {
+    const options = makeOptions(program);
+    const config = validateAgent(options.agent);
+    checkAgentInstalled(config);
+    const { runFix } = await import("./commands/fix.js");
+    await runFix(instructions, config, options);
+  });
+
+program
   .command("update")
   .description("Update to latest version")
   .action(async () => {
