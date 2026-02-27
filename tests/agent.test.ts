@@ -441,6 +441,17 @@ describe("runAgentsParallel", () => {
       }),
     }));
 
+    const mockSpinner = { start: vi.fn(), succeed: vi.fn(), fail: vi.fn(), stop: vi.fn() };
+    const MultiSpinnerMock = vi.fn().mockImplementation(() => mockSpinner);
+
+    vi.doMock("../src/ui.js", () => ({
+      isUtf8: false,
+      dim: (s: string) => s,
+      formatDuration: (s: number) => `${s}s`,
+      printWarning: vi.fn(),
+      MultiSpinner: MultiSpinnerMock,
+    }));
+
     const { runAgentsParallel } = await import("../src/agent.js");
 
     const tasks = [
@@ -453,7 +464,6 @@ describe("runAgentsParallel", () => {
       tasks,
       AGENTS.claude,
       makeOptions(),
-      "reviewing",
       Date.now(),
     );
 
@@ -474,6 +484,16 @@ describe("runAgentsParallel", () => {
     expect(results[0]).toEqual({ output: "output A", exitCode: 0, label: "Agent A" });
     expect(results[1]).toEqual({ output: "output B", exitCode: 0, label: "Agent B" });
     expect(results[2]).toEqual({ output: "output C", exitCode: 1, label: "Agent C" });
+
+    expect(MultiSpinnerMock).toHaveBeenCalledWith({
+      labels: ["Agent A", "Agent B", "Agent C"],
+      startTime: expect.any(Number),
+    });
+    expect(mockSpinner.start).toHaveBeenCalledOnce();
+    expect(mockSpinner.succeed).toHaveBeenCalledWith(0);
+    expect(mockSpinner.succeed).toHaveBeenCalledWith(1);
+    expect(mockSpinner.fail).toHaveBeenCalledWith(2);
+    expect(mockSpinner.stop).toHaveBeenCalledOnce();
   });
 
   it("does not write individual agent outputs to stdout", async () => {
@@ -494,6 +514,16 @@ describe("runAgentsParallel", () => {
       }),
     }));
 
+    vi.doMock("../src/ui.js", () => ({
+      isUtf8: false,
+      dim: (s: string) => s,
+      formatDuration: (s: number) => `${s}s`,
+      printWarning: vi.fn(),
+      MultiSpinner: vi.fn().mockImplementation(() => ({
+        start: vi.fn(), succeed: vi.fn(), fail: vi.fn(), stop: vi.fn(),
+      })),
+    }));
+
     const stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
 
     const { runAgentsParallel } = await import("../src/agent.js");
@@ -504,7 +534,7 @@ describe("runAgentsParallel", () => {
     ];
 
     const resultPromise = runAgentsParallel(
-      tasks, AGENTS.claude, makeOptions(), "reviewing", Date.now(),
+      tasks, AGENTS.claude, makeOptions(), Date.now(),
     );
 
     await vi.waitFor(() => {
@@ -543,6 +573,16 @@ describe("runAgentsParallel", () => {
       }),
     }));
 
+    vi.doMock("../src/ui.js", () => ({
+      isUtf8: false,
+      dim: (s: string) => s,
+      formatDuration: (s: number) => `${s}s`,
+      printWarning: vi.fn(),
+      MultiSpinner: vi.fn().mockImplementation(() => ({
+        start: vi.fn(), succeed: vi.fn(), fail: vi.fn(), stop: vi.fn(),
+      })),
+    }));
+
     const { runAgentsParallel } = await import("../src/agent.js");
 
     const tasks = [
@@ -551,7 +591,7 @@ describe("runAgentsParallel", () => {
     ];
 
     const resultPromise = runAgentsParallel(
-      tasks, AGENTS.claude, makeOptions({ debug: true }), "reviewing", Date.now(),
+      tasks, AGENTS.claude, makeOptions({ debug: true }), Date.now(),
     );
 
     await vi.waitFor(() => {

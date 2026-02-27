@@ -71,7 +71,7 @@ export async function runReview(
     label: SPECIALIST_LABELS[i],
   }));
 
-  const results = await runAgentsParallel(tasks, config, options, "reviewing", startTime);
+  const results = await runAgentsParallel(tasks, config, options, startTime);
 
   const successful = results.filter((r) => r.exitCode === 0 && r.output);
   const failed = results.filter((r) => r.exitCode !== 0 || !r.output);

@@ -1,7 +1,7 @@
 import { spawn, execFileSync } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
 import ora from "ora";
-import { isUtf8, dim, formatDuration, printWarning } from "./ui.js";
+import { isUtf8, dim, formatDuration, printWarning, MultiSpinner } from "./ui.js";
 
 export interface AgentConfig {
   name: string;
@@ -225,7 +225,6 @@ export async function runAgentsParallel(
   tasks: Array<{ prompt: string; label: string }>,
   config: AgentConfig,
   options: RalphOptions,
-  activity: string,
   startTime: number,
 ): Promise<Array<{ output: string; exitCode: number; label: string }>> {
   if (options.debug) {
@@ -238,30 +237,25 @@ export async function runAgentsParallel(
     return results;
   }
 
-  const spinner = ora({
-    spinner: isUtf8 ? "dots" : { frames: ["-", "\\", "|", "/"] },
-    prefixText: " ",
+  const spinner = new MultiSpinner({
+    labels: tasks.map((t) => t.label),
+    startTime,
   });
 
-  let completed = 0;
-  const total = tasks.length;
-  const elapsed = () =>
-    formatDuration(Math.floor((Date.now() - startTime) / 1000));
+  spinner.start();
 
-  spinner.start(`${activity} (0/${total} complete) ${dim(elapsed())}`);
-  const timer = setInterval(() => {
-    spinner.text = `${activity} (${completed}/${total} complete) ${dim(elapsed())}`;
-  }, 500);
-
-  const promises = tasks.map(async (task) => {
+  const promises = tasks.map(async (task, i) => {
     const result = await spawnAgent(task.prompt, config, options.timeout);
-    completed++;
+    if (result.exitCode === 0 && result.output) {
+      spinner.succeed(i);
+    } else {
+      spinner.fail(i);
+    }
     return { output: result.output, exitCode: result.exitCode, label: task.label };
   });
 
   const results = await Promise.all(promises);
 
-  clearInterval(timer);
   spinner.stop();
 
   return results;
