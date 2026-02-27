@@ -31,6 +31,7 @@ export async function runFix(
   if (instructions) {
     printKv("instructions", instructions);
   }
+  console.log("");
 
   const startTime = Date.now();
 
