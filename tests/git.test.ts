@@ -161,7 +161,7 @@ describe("isDiffEmpty", () => {
   it("returns true when diff output is empty", async () => {
     vi.doMock("node:child_process", () => ({
       execFile: mockExecFile((cmd, args) => {
-        expect(args).toEqual(["diff", "HEAD"]);
+        expect(args).toEqual(["diff", "--quiet", "HEAD"]);
         return { stdout: "", stderr: "" };
       }),
     }));
@@ -172,10 +172,9 @@ describe("isDiffEmpty", () => {
 
   it("returns false when diff has content", async () => {
     vi.doMock("node:child_process", () => ({
-      execFile: mockExecFile(() => ({
-        stdout: "diff --git a/foo.ts b/foo.ts\n",
-        stderr: "",
-      })),
+      execFile: mockExecFileError(
+        () => Object.assign(new Error("changes"), { code: 1 }),
+      ),
     }));
 
     const { isDiffEmpty } = await import("../src/git.js");
@@ -551,7 +550,8 @@ describe("resolveReviewTarget", () => {
     vi.doMock("node:child_process", () => ({
       execFile: mockExecFile((cmd, args) => {
         if (args[0] === "branch") return { stdout: "master\n", stderr: "" };
-        if (args[0] === "diff") return { stdout: "some changes\n", stderr: "" };
+        if (args[0] === "diff")
+          throw Object.assign(new Error("changes"), { code: 1 });
         return { stdout: "", stderr: "" };
       }),
     }));
@@ -570,7 +570,8 @@ describe("resolveReviewTarget", () => {
     vi.doMock("node:child_process", () => ({
       execFile: mockExecFile((cmd, args) => {
         if (args[0] === "branch") return { stdout: "main\n", stderr: "" };
-        if (args[0] === "diff") return { stdout: "some changes\n", stderr: "" };
+        if (args[0] === "diff")
+          throw Object.assign(new Error("changes"), { code: 1 });
         return { stdout: "", stderr: "" };
       }),
     }));
@@ -636,7 +637,8 @@ describe("resolveReviewTarget", () => {
             stdout: "refs/remotes/origin/develop\n",
             stderr: "",
           };
-        if (args[0] === "diff") return { stdout: "some changes\n", stderr: "" };
+        if (args[0] === "diff")
+          throw Object.assign(new Error("changes"), { code: 1 });
         return { stdout: "", stderr: "" };
       }),
     }));
@@ -656,7 +658,8 @@ describe("resolveReviewTarget", () => {
       execFile: mockExecFile((cmd, args) => {
         if (args[0] === "branch") return { stdout: "feature/x\n", stderr: "" };
         if (args[0] === "rev-parse") throw new Error("not found");
-        if (args[0] === "diff") return { stdout: "some diff\n", stderr: "" };
+        if (args[0] === "diff")
+          throw Object.assign(new Error("changes"), { code: 1 });
         return { stdout: "", stderr: "" };
       }),
     }));

@@ -5,6 +5,9 @@ import { promisify } from "node:util";
 
 const execFile = promisify(execFileCb);
 
+const git = (...args: string[]) =>
+  execFile("git", args, { maxBuffer: 50 * 1024 * 1024 });
+
 export type ReviewTarget =
   | { type: "auto" }
   | { type: "staged" }
@@ -60,7 +63,7 @@ export function parseReviewTarget(
 
 export async function validateRef(ref: string): Promise<void> {
   try {
-    await execFile("git", ["rev-parse", "--verify", ref]);
+    await git("rev-parse", "--verify", ref);
   } catch {
     throw new Error(`unknown git ref '${ref}'`);
   }
@@ -68,7 +71,7 @@ export async function validateRef(ref: string): Promise<void> {
 
 export async function getCommitSubject(ref: string): Promise<string> {
   try {
-    const { stdout } = await execFile("git", ["log", "-1", "--format=%s", ref]);
+    const { stdout } = await git("log", "-1", "--format=%s", ref);
     return stdout.trim();
   } catch {
     throw new Error(`failed to read commit subject for '${ref}'`);
@@ -77,10 +80,7 @@ export async function getCommitSubject(ref: string): Promise<string> {
 
 export async function getDefaultBranch(): Promise<string | null> {
   try {
-    const { stdout } = await execFile("git", [
-      "symbolic-ref",
-      "refs/remotes/origin/HEAD",
-    ]);
+    const { stdout } = await git("symbolic-ref", "refs/remotes/origin/HEAD");
     const ref = stdout.trim().replace("refs/remotes/origin/", "");
     return ref || null;
   } catch {
@@ -199,13 +199,13 @@ export interface WorktreeInfo {
 }
 
 export async function getRepoRoot(): Promise<string> {
-  const { stdout } = await execFile("git", ["rev-parse", "--show-toplevel"]);
+  const { stdout } = await git("rev-parse", "--show-toplevel");
   return stdout.trim();
 }
 
 export async function getHeadHash(): Promise<string> {
   try {
-    const { stdout } = await execFile("git", ["rev-parse", "HEAD"]);
+    const { stdout } = await git("rev-parse", "HEAD");
     return stdout.trim();
   } catch {
     return "";
@@ -225,7 +225,7 @@ export async function createWorktree(
   const name = `${repoName}-ralph-${hhmmss}`;
   const dir = join(dirname(repoRoot), name);
 
-  await execFile("git", ["worktree", "add", "-b", branch, dir, "HEAD"]);
+  await git("worktree", "add", "-b", branch, dir, "HEAD");
 
   for (const f of ["IMPLEMENTATION_PLAN.md", "progress.txt", "GOAL.md"]) {
     try {
@@ -239,31 +239,33 @@ export async function createWorktree(
 }
 
 export async function getCurrentBranch(): Promise<string> {
-  const { stdout } = await execFile("git", ["branch", "--show-current"]);
+  const { stdout } = await git("branch", "--show-current");
   return stdout.trim();
 }
 
 export async function getDiffStat(range: string): Promise<string> {
-  const args = ["diff", "--stat", ...range.split(" ")];
-  const { stdout } = await execFile("git", args);
+  const { stdout } = await git("diff", "--stat", ...range.split(" "));
   return stdout.trim();
 }
 
 export async function getCommitLog(range: string): Promise<string> {
-  const args = ["log", "--oneline", ...range.split(" ")];
-  const { stdout } = await execFile("git", args);
+  const { stdout } = await git("log", "--oneline", ...range.split(" "));
   return stdout.trim();
 }
 
 export async function isDiffEmpty(range: string): Promise<boolean> {
-  const args = ["diff", ...range.split(" ")];
-  const { stdout } = await execFile("git", args);
-  return stdout.trim() === "";
+  try {
+    await git("diff", "--quiet", ...range.split(" "));
+    return true;
+  } catch (err: any) {
+    if (err.code === 1) return false;
+    throw err;
+  }
 }
 
 async function remoteRefExists(ref: string): Promise<boolean> {
   try {
-    await execFile("git", ["rev-parse", "--verify", ref]);
+    await git("rev-parse", "--verify", ref);
     return true;
   } catch {
     return false;
