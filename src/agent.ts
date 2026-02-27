@@ -1,7 +1,7 @@
 import { spawn, execFileSync } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
 import ora from "ora";
-import { isUtf8, dim, formatDuration, printWarning, MultiSpinner } from "./ui.js";
+import { isUtf8, dim, formatDuration, printWarning, MultiSpinner, SPINNER_INTERVAL_MS } from "./ui.js";
 
 export interface AgentConfig {
   name: string;
@@ -184,6 +184,7 @@ async function runWithSpinner(
   const spinner = ora({
     spinner: isUtf8 ? "dots" : { frames: ["-", "\\", "|", "/"] },
     prefixText: " ",
+    interval: SPINNER_INTERVAL_MS,
   });
 
   const elapsed = () =>
@@ -192,7 +193,7 @@ async function runWithSpinner(
 
   const timer = setInterval(() => {
     spinner.text = `${activity} ${dim(elapsed())}`;
-  }, 500);
+  }, SPINNER_INTERVAL_MS);
 
   const { output, exitCode, timedOut, spawnError } = await spawnAgent(
     prompt, config, timeout,
@@ -226,6 +227,7 @@ export async function runAgentsParallel(
   config: AgentConfig,
   options: RalphOptions,
   startTime: number,
+  colors?: Array<(s: string) => string>,
 ): Promise<Array<{ output: string; exitCode: number; label: string }>> {
   if (options.debug) {
     const results: Array<{ output: string; exitCode: number; label: string }> = [];
@@ -240,6 +242,7 @@ export async function runAgentsParallel(
   const spinner = new MultiSpinner({
     labels: tasks.map((t) => t.label),
     startTime,
+    colors,
   });
 
   spinner.start();

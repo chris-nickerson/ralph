@@ -450,6 +450,7 @@ describe("runAgentsParallel", () => {
       formatDuration: (s: number) => `${s}s`,
       printWarning: vi.fn(),
       MultiSpinner: MultiSpinnerMock,
+      SPINNER_INTERVAL_MS: 80,
     }));
 
     const { runAgentsParallel } = await import("../src/agent.js");
@@ -485,10 +486,12 @@ describe("runAgentsParallel", () => {
     expect(results[1]).toEqual({ output: "output B", exitCode: 0, label: "Agent B" });
     expect(results[2]).toEqual({ output: "output C", exitCode: 1, label: "Agent C" });
 
-    expect(MultiSpinnerMock).toHaveBeenCalledWith({
-      labels: ["Agent A", "Agent B", "Agent C"],
-      startTime: expect.any(Number),
-    });
+    expect(MultiSpinnerMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        labels: ["Agent A", "Agent B", "Agent C"],
+        startTime: expect.any(Number),
+      }),
+    );
     expect(mockSpinner.start).toHaveBeenCalledOnce();
     expect(mockSpinner.succeed).toHaveBeenCalledWith(0);
     expect(mockSpinner.succeed).toHaveBeenCalledWith(1);
@@ -523,6 +526,7 @@ describe("runAgentsParallel", () => {
       formatDuration: (s: number) => `${s}s`,
       printWarning: vi.fn(),
       MultiSpinner: MultiSpinnerMock,
+      SPINNER_INTERVAL_MS: 80,
     }));
 
     const { runAgentsParallel } = await import("../src/agent.js");
@@ -580,6 +584,7 @@ describe("runAgentsParallel", () => {
       MultiSpinner: vi.fn().mockImplementation(() => ({
         start: vi.fn(), succeed: vi.fn(), fail: vi.fn(), stop: vi.fn(),
       })),
+      SPINNER_INTERVAL_MS: 80,
     }));
 
     const stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
@@ -639,6 +644,7 @@ describe("runAgentsParallel", () => {
       MultiSpinner: vi.fn().mockImplementation(() => ({
         start: vi.fn(), succeed: vi.fn(), fail: vi.fn(), stop: vi.fn(),
       })),
+      SPINNER_INTERVAL_MS: 80,
     }));
 
     const { runAgentsParallel } = await import("../src/agent.js");
