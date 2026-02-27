@@ -143,6 +143,115 @@ export function printWarning(msg: string): void {
   console.log(`${yellow("warning:")} ${msg}`);
 }
 
+const SPINNER_FRAMES_UTF8 = [
+  "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏",
+];
+const SPINNER_FRAMES_ASCII = ["-", "\\", "|", "/"];
+
+export interface MultiSpinnerOptions {
+  labels: string[];
+  startTime: number;
+  isTTY?: boolean;
+}
+
+type LineState = "spinning" | "succeeded" | "failed";
+
+export class MultiSpinner {
+  private labels: string[];
+  private startTime: number;
+  private tty: boolean;
+  private states: LineState[];
+  private frozenElapsed: (number | null)[];
+  private interval: ReturnType<typeof setInterval> | null = null;
+  private frameIndex = 0;
+  private maxLabelLen: number;
+  private frames: string[];
+
+  constructor(options: MultiSpinnerOptions) {
+    this.labels = options.labels;
+    this.startTime = options.startTime;
+    this.tty = options.isTTY ?? isTTY;
+    this.states = options.labels.map(() => "spinning" as LineState);
+    this.frozenElapsed = options.labels.map(() => null);
+    this.maxLabelLen = Math.max(...options.labels.map((l) => l.length));
+    this.frames = isUtf8 ? SPINNER_FRAMES_UTF8 : SPINNER_FRAMES_ASCII;
+  }
+
+  start(): void {
+    if (!this.tty) {
+      const bullet = isUtf8 ? "▸" : ">";
+      for (const label of this.labels) {
+        process.stdout.write(`  ${bullet} ${label}\n`);
+      }
+      return;
+    }
+    this.render();
+    this.interval = setInterval(() => {
+      this.frameIndex = (this.frameIndex + 1) % this.frames.length;
+      process.stdout.write(`\x1b[${this.labels.length}A`);
+      this.render();
+    }, 500);
+  }
+
+  succeed(index: number): void {
+    this.states[index] = "succeeded";
+    this.frozenElapsed[index] = Math.floor(
+      (Date.now() - this.startTime) / 1000,
+    );
+    if (!this.tty) {
+      const mark = isUtf8 ? green("✓") : green("done");
+      const elapsed = formatDuration(this.frozenElapsed[index]!);
+      process.stdout.write(`  ${mark} ${this.labels[index]}  ${dim(elapsed)}\n`);
+    }
+  }
+
+  fail(index: number): void {
+    this.states[index] = "failed";
+    this.frozenElapsed[index] = Math.floor(
+      (Date.now() - this.startTime) / 1000,
+    );
+    if (!this.tty) {
+      const mark = isUtf8 ? red("✗") : red("fail");
+      const elapsed = formatDuration(this.frozenElapsed[index]!);
+      process.stdout.write(`  ${mark} ${this.labels[index]}  ${dim(elapsed)}\n`);
+    }
+  }
+
+  stop(): void {
+    if (this.interval) {
+      clearInterval(this.interval);
+      this.interval = null;
+    }
+    if (this.tty) {
+      process.stdout.write(`\x1b[${this.labels.length}A`);
+      this.render();
+    }
+    process.stdout.write("\n");
+  }
+
+  private render(): void {
+    const currentElapsed = Math.floor((Date.now() - this.startTime) / 1000);
+    for (let i = 0; i < this.labels.length; i++) {
+      const label = this.labels[i].padEnd(this.maxLabelLen);
+      const elapsed = this.frozenElapsed[i] ?? currentElapsed;
+      const timeStr = dim(formatDuration(elapsed));
+      let prefix: string;
+      switch (this.states[i]) {
+        case "succeeded":
+          prefix = isUtf8 ? green("✓") : green("done");
+          break;
+        case "failed":
+          prefix = isUtf8 ? red("✗") : red("fail");
+          break;
+        default:
+          prefix = this.frames[this.frameIndex];
+          break;
+      }
+      process.stdout.write(`\x1b[2K  ${prefix} ${label}  ${timeStr}\n`);
+    }
+  }
+}
+
 export async function confirm(
   prompt: string,
   defaultVal: string = "n",

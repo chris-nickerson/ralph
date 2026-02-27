@@ -9,7 +9,7 @@ vi.mock("node:readline", () => ({
   createInterface: mockReadline.createInterface,
 }));
 
-import { formatDuration, line, confirm } from "../src/ui.js";
+import { formatDuration, line, confirm, MultiSpinner, isUtf8 } from "../src/ui.js";
 
 describe("line", () => {
   it("returns 74 dashes", () => {
@@ -133,5 +133,182 @@ describe("confirm", () => {
     const promise = confirm("Continue?");
     rl.emit("close");
     expect(await promise).toBe(false);
+  });
+});
+
+describe("MultiSpinner", () => {
+  let stdoutSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    stdoutSpy = vi
+      .spyOn(process.stdout, "write")
+      .mockImplementation(() => true);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    stdoutSpy.mockRestore();
+  });
+
+  function allOutput(): string {
+    return stdoutSpy.mock.calls.map((c) => String(c[0])).join("");
+  }
+
+  describe("TTY mode", () => {
+    it("start() writes one line per label", () => {
+      const spinner = new MultiSpinner({
+        labels: ["Alpha", "Beta"],
+        startTime: Date.now(),
+        isTTY: true,
+      });
+      spinner.start();
+      const output = allOutput();
+      expect(output).toContain("Alpha");
+      expect(output).toContain("Beta");
+      spinner.stop();
+    });
+
+    it("succeed(i) shows success marker on next render", () => {
+      const spinner = new MultiSpinner({
+        labels: ["Alpha", "Beta"],
+        startTime: Date.now(),
+        isTTY: true,
+      });
+      spinner.start();
+
+      vi.advanceTimersByTime(5000);
+      spinner.succeed(0);
+      stdoutSpy.mockClear();
+
+      vi.advanceTimersByTime(500);
+      const output = allOutput();
+      const mark = isUtf8 ? "✓" : "done";
+      expect(output).toContain(mark);
+      expect(output).toContain("Alpha");
+      spinner.stop();
+    });
+
+    it("fail(i) shows failure marker on next render", () => {
+      const spinner = new MultiSpinner({
+        labels: ["Alpha", "Beta"],
+        startTime: Date.now(),
+        isTTY: true,
+      });
+      spinner.start();
+
+      vi.advanceTimersByTime(3000);
+      spinner.fail(1);
+      stdoutSpy.mockClear();
+
+      vi.advanceTimersByTime(500);
+      const output = allOutput();
+      const mark = isUtf8 ? "✗" : "fail";
+      expect(output).toContain(mark);
+      expect(output).toContain("Beta");
+      spinner.stop();
+    });
+
+    it("stop() clears the interval", () => {
+      const spinner = new MultiSpinner({
+        labels: ["Alpha"],
+        startTime: Date.now(),
+        isTTY: true,
+      });
+      spinner.start();
+      spinner.stop();
+      stdoutSpy.mockClear();
+
+      vi.advanceTimersByTime(2000);
+      expect(stdoutSpy).not.toHaveBeenCalled();
+    });
+
+    it("freezes elapsed time for completed lines", () => {
+      const start = Date.now();
+      const spinner = new MultiSpinner({
+        labels: ["Alpha", "Beta"],
+        startTime: start,
+        isTTY: true,
+      });
+      spinner.start();
+
+      vi.advanceTimersByTime(5000);
+      spinner.succeed(0);
+      vi.advanceTimersByTime(5000);
+      stdoutSpy.mockClear();
+
+      vi.advanceTimersByTime(500);
+      const output = allOutput();
+      expect(output).toContain("5s");
+      expect(output).toContain("10s");
+      spinner.stop();
+    });
+  });
+
+  describe("non-TTY mode", () => {
+    it("start() writes one line per label with bullet", () => {
+      const spinner = new MultiSpinner({
+        labels: ["Alpha", "Beta"],
+        startTime: Date.now(),
+        isTTY: false,
+      });
+      spinner.start();
+      const output = allOutput();
+      const bullet = isUtf8 ? "▸" : ">";
+      expect(output).toContain(`${bullet} Alpha`);
+      expect(output).toContain(`${bullet} Beta`);
+      spinner.stop();
+    });
+
+    it("succeed(i) logs a completion line", () => {
+      vi.advanceTimersByTime(8000);
+      const spinner = new MultiSpinner({
+        labels: ["Alpha"],
+        startTime: Date.now() - 8000,
+        isTTY: false,
+      });
+      spinner.start();
+      stdoutSpy.mockClear();
+
+      spinner.succeed(0);
+      const output = allOutput();
+      const mark = isUtf8 ? "✓" : "done";
+      expect(output).toContain(mark);
+      expect(output).toContain("Alpha");
+      expect(output).toContain("8s");
+      spinner.stop();
+    });
+
+    it("fail(i) logs a failure line", () => {
+      vi.advanceTimersByTime(6000);
+      const spinner = new MultiSpinner({
+        labels: ["Alpha"],
+        startTime: Date.now() - 6000,
+        isTTY: false,
+      });
+      spinner.start();
+      stdoutSpy.mockClear();
+
+      spinner.fail(0);
+      const output = allOutput();
+      const mark = isUtf8 ? "✗" : "fail";
+      expect(output).toContain(mark);
+      expect(output).toContain("Alpha");
+      expect(output).toContain("6s");
+      spinner.stop();
+    });
+
+    it("does not use ANSI cursor movement", () => {
+      const spinner = new MultiSpinner({
+        labels: ["Alpha"],
+        startTime: Date.now(),
+        isTTY: false,
+      });
+      spinner.start();
+      spinner.succeed(0);
+      spinner.stop();
+      const output = allOutput();
+      expect(output).not.toContain("\x1b[");
+    });
   });
 });
