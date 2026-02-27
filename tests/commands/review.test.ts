@@ -388,6 +388,46 @@ describe("runReviewPipeline", () => {
     expect(result.needsRevision).toBe(false);
   });
 
+  it("sets needsRevision based on verification output only, not synthesis", async () => {
+    mocks.runAgent.mockReset();
+    mocks.runAgent
+      .mockResolvedValueOnce({ output: "Final Verdict: NEEDS REVISION\nSome issues found.", exitCode: 0 })
+      .mockResolvedValueOnce({ output: "Verification: APPROVED — all findings addressed.", exitCode: 0 });
+
+    const result = await runReviewPipeline(mockContext, agentConfig, defaultOptions, Date.now());
+
+    expect(result.needsRevision).toBe(false);
+  });
+
+  it("sets needsRevision on synthesis fallback when content contains trigger phrase", async () => {
+    mocks.runAgent.mockReset();
+    mocks.runAgent.mockResolvedValueOnce({ output: "", exitCode: 1 });
+
+    mocks.runAgentsParallel.mockResolvedValue([
+      { output: "NEEDS REVISION: found bugs", exitCode: 0, label: "Correctness" },
+      { output: "looks fine", exitCode: 0, label: "Code Quality" },
+      { output: "ok", exitCode: 0, label: "Test Quality" },
+      { output: "ok", exitCode: 0, label: "Security & Perf" },
+    ]);
+
+    const result = await runReviewPipeline(mockContext, agentConfig, defaultOptions, Date.now());
+
+    expect(result.needsRevision).toBe(true);
+    expect(result.fallback).toBe(true);
+  });
+
+  it("sets needsRevision on verification fallback when synthesis contains trigger phrase", async () => {
+    mocks.runAgent.mockReset();
+    mocks.runAgent
+      .mockResolvedValueOnce({ output: "NEEDS REVISION: problems found", exitCode: 0 })
+      .mockResolvedValueOnce({ output: "", exitCode: 1 });
+
+    const result = await runReviewPipeline(mockContext, agentConfig, defaultOptions, Date.now());
+
+    expect(result.needsRevision).toBe(true);
+    expect(result.fallback).toBe(true);
+  });
+
   it("checks needsRevision case-insensitively", async () => {
     mocks.runAgent.mockReset();
     mocks.runAgent

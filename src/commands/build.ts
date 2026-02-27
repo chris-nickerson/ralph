@@ -18,6 +18,7 @@ import {
   printLimitReached,
   printWorktreeNext,
   printError,
+  printWarning,
 } from "../ui.js";
 import { runReviewPipeline } from "./review.js";
 
@@ -69,6 +70,10 @@ export async function runBuild(
   }
 
   const startHash = await getHeadHash();
+  if (!startHash) {
+    printError("unable to resolve HEAD — is this a valid git repository?");
+    process.exit(1);
+  }
   const startTime = Date.now();
   let iteration = 0;
   let consecutiveFailures = 0;
@@ -132,14 +137,16 @@ export async function runBuild(
 
         const { reviewContent, needsRevision } = await runReviewPipeline(context, config, options, startTime);
 
-        if (reviewContent !== undefined) {
+        if (reviewContent === undefined) {
+          printWarning("all reviewers failed — skipping review");
+        } else {
           await saveReview(reviewContent);
-        }
 
-        if (needsRevision && reviewContent !== undefined) {
-          printPhase(iteration, "fix");
-          const fixPrompt = await buildFixPrompt(reviewContent, undefined, options.noCommit);
-          await runAgent(fixPrompt, config, options, "fixing", startTime);
+          if (needsRevision) {
+            printPhase(iteration, "fix");
+            const fixPrompt = await buildFixPrompt(reviewContent, undefined, options.noCommit);
+            await runAgent(fixPrompt, config, options, "fixing", startTime);
+          }
         }
       }
 

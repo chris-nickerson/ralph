@@ -26,6 +26,10 @@ import {
   printWarning,
 } from "../ui.js";
 
+function checkNeedsRevision(text: string): boolean {
+  return text.toUpperCase().includes("NEEDS REVISION");
+}
+
 const SPECIALIST_LABELS = [
   "Correctness",
   "Code Quality",
@@ -88,7 +92,7 @@ export async function runReviewPipeline(
     const joined = specialistOutputs.map((s) => `\n--- ${s.label} ---\n${s.output}`).join("");
     return {
       reviewContent: joined,
-      needsRevision: joined.toUpperCase().includes("NEEDS REVISION"),
+      needsRevision: checkNeedsRevision(joined),
       fallback: true,
     };
   }
@@ -105,7 +109,7 @@ export async function runReviewPipeline(
     printWarning("verification failed, showing synthesized review");
     return {
       reviewContent: synthesizedReview,
-      needsRevision: synthesizedReview.toUpperCase().includes("NEEDS REVISION"),
+      needsRevision: checkNeedsRevision(synthesizedReview),
       fallback: true,
     };
   }
@@ -113,7 +117,7 @@ export async function runReviewPipeline(
   const reviewContent = synthesizedReview + "\n" + verifyResult.output;
   return {
     reviewContent,
-    needsRevision: reviewContent.toUpperCase().includes("NEEDS REVISION"),
+    needsRevision: checkNeedsRevision(verifyResult.output),
     fallback: false,
   };
 }

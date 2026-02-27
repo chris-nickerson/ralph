@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => ({
   printLimitReached: vi.fn(),
   printWorktreeNext: vi.fn(),
   printError: vi.fn(),
+  printWarning: vi.fn(),
 }));
 
 vi.mock("../../src/agent.js", () => ({
@@ -63,6 +64,7 @@ vi.mock("../../src/ui.js", () => ({
   printLimitReached: mocks.printLimitReached,
   printWorktreeNext: mocks.printWorktreeNext,
   printError: mocks.printError,
+  printWarning: mocks.printWarning,
 }));
 
 import { runBuild } from "../../src/commands/build.js";
@@ -416,6 +418,44 @@ describe("runBuild", () => {
       "agent failed 3 times consecutively; stopping",
     );
     expect(exitSpy).toHaveBeenCalledWith(0);
+  });
+
+  it("exits when getHeadHash returns empty string", async () => {
+    mocks.getHeadHash.mockResolvedValue("");
+
+    await expect(runBuild(10, agentConfig, defaultOptions)).rejects.toThrow("EXIT");
+    expect(exitSpy).toHaveBeenCalledWith(1);
+    expect(mocks.printError).toHaveBeenCalledWith("unable to resolve HEAD — is this a valid git repository?");
+  });
+
+  it("warns and completes when all reviewers fail during final review", async () => {
+    vi.useFakeTimers();
+
+    let taskCallCount = 0;
+    mocks.countTasks.mockImplementation(async () => {
+      taskCallCount++;
+      if (taskCallCount <= 1) return 1;
+      return 0;
+    });
+
+    mocks.runReviewPipeline.mockResolvedValue({
+      reviewContent: undefined,
+      needsRevision: false,
+      fallback: false,
+    });
+
+    const promise = runBuild(10, agentConfig, defaultOptions);
+    promise.catch(() => {});
+
+    await vi.advanceTimersByTimeAsync(1000);
+
+    await expect(promise).rejects.toThrow("EXIT");
+    expect(exitSpy).toHaveBeenCalledWith(0);
+
+    expect(mocks.printWarning).toHaveBeenCalledWith("all reviewers failed — skipping review");
+    expect(mocks.saveReview).not.toHaveBeenCalled();
+    expect(mocks.buildFixPrompt).not.toHaveBeenCalled();
+    expect(mocks.printComplete).toHaveBeenCalled();
   });
 
   it("exits after 3 consecutive agent failures", async () => {
