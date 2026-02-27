@@ -253,7 +253,7 @@ describe("runReview", () => {
   it("saves final report and prints next-step hint on full success", async () => {
     await runReview(agentConfig, defaultOptions);
 
-    expect(mocks.saveReview).toHaveBeenCalledWith("final report");
+    expect(mocks.saveReview).toHaveBeenCalledWith("synthesized review\nfinal report");
     expect(mocks.printKv).toHaveBeenCalledWith("next", "ralph fix");
   });
 

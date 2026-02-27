@@ -2,9 +2,11 @@ You are in FIX mode. Your task is to fix issues identified in the embedded verif
 
 ## What to Fix
 
-- Fix **VALID** and **PARTIALLY VALID** findings only
-- Skip **FALSE POSITIVE** findings entirely — do not touch code flagged as a false positive
-- The review content is embedded below
+The review below has two sections: the **synthesized review** (findings with file paths, code, and suggested fixes) followed by a **verification** section (verdicts on each finding). Use both:
+
+- Fix findings marked **VALID** or **PARTIALLY VALID** in the verification section. For PARTIALLY VALID findings, respect the adjusted severity.
+- **Skip** findings marked **FALSE POSITIVE** entirely — do not touch that code.
+- If there is no verification section, fix all findings in the review.
 
 ## How to Fix
 

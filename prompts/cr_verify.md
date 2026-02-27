@@ -48,14 +48,35 @@ Recommended actions
 
 **Calibration**: If every finding holds up, say so — don't manufacture dismissals to appear thorough. If there are false positives, say that too. Your job is accuracy, not balance. Be skeptical of generic advice that doesn't consider the specific context and requirements of this codebase.
 
-## Integration
+## Output format
 
-After verifying all findings, produce the FINAL integrated report. Start from the synthesized review provided below and apply these changes:
+Your output is appended after the synthesized review — do NOT reproduce or rewrite the review. Output only your verification results.
 
-1. **Remove** findings you marked FALSE POSITIVE entirely from the report.
-2. **Adjust** findings marked PARTIALLY VALID — update their severity and description per your assessment.
-3. **Annotate** findings marked VALID with: `> **Verified**: [evidence]`
-4. If verification changes the overall verdict (e.g., the only Critical was dismissed), update the Final Verdict.
-5. If any findings were adjusted, add a `## Verification Notes` section after `What's Good` listing what changed and why.
+Use this exact format:
 
-Output the complete final report in the same markdown format as the synthesized review. This is the deliverable the user will read.
+```
+---
+
+# Verification
+
+## Finding Verdicts
+
+### [Finding title from the review]
+**Verdict**: VALID / FALSE POSITIVE / PARTIALLY VALID
+**Reasoning**: [Detailed explanation citing specific code lines as evidence. What you checked, what you found, and why this conclusion follows.]
+**Severity adjustment**: [Only if changed — e.g. "Major → Minor: callers catch exceptions"]
+
+### [Next finding title]
+...
+
+## Verification Summary
+
+- X of Y findings confirmed (VALID)
+- X findings partially valid (scope or severity adjusted)
+- X findings dismissed (FALSE POSITIVE)
+
+## Adjusted Verdict: **APPROVED** / **NEEDS REVISION**
+[Only include if the overall verdict changed from the synthesis. Explain why.]
+```
+
+The fix agent reads the full document (synthesis + your verification). It will use the synthesis for file paths, code snippets, and suggested fixes. It will use your verdicts to know which findings to act on and which to skip. Do not repeat information already in the synthesis.

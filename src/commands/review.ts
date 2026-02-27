@@ -119,7 +119,7 @@ export async function runReview(
       process.stdout.write(synthesizedReview);
       reviewToSave = synthesizedReview;
     } else {
-      reviewToSave = verifyResult.output;
+      reviewToSave = synthesizedReview + "\n" + verifyResult.output;
     }
   }
 
