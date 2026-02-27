@@ -35,6 +35,89 @@ const SPECIALIST_LABELS = [
 
 const SPECIALIST_COLORS = [pc.cyan, pc.green, pc.magenta, pc.yellow];
 
+export interface ReviewPipelineResult {
+  reviewContent: string | undefined;
+  needsRevision: boolean;
+  fallback: boolean;
+}
+
+export async function runReviewPipeline(
+  context: CodeReviewContext,
+  config: AgentConfig,
+  options: RalphOptions,
+  startTime: number,
+): Promise<ReviewPipelineResult> {
+  // Phase 1: Specialists
+  printStep(1, "specialists", "4 parallel reviews");
+
+  const specialistPrompts = await Promise.all(
+    ([1, 2, 3, 4] as const).map((i) => buildSpecialistPrompt(i, context)),
+  );
+
+  const tasks = specialistPrompts.map((prompt, i) => ({
+    prompt,
+    label: SPECIALIST_LABELS[i],
+  }));
+
+  const results = await runAgentsParallel(tasks, config, options, startTime, SPECIALIST_COLORS);
+
+  const successful = results.filter((r) => r.exitCode === 0 && r.output);
+  const failed = results.filter((r) => r.exitCode !== 0 || !r.output);
+
+  if (successful.length === 0) {
+    return { reviewContent: undefined, needsRevision: false, fallback: false };
+  }
+
+  for (const f of failed) {
+    printWarning(`specialist "${f.label}" failed`);
+  }
+
+  // Phase 2: Synthesis
+  printStep(2, "synthesis");
+
+  const specialistOutputs = successful.map((r) => ({
+    label: r.label,
+    output: r.output,
+  }));
+
+  const synthPrompt = await buildSynthesisPrompt(specialistOutputs, context);
+  const synthResult = await runAgent(synthPrompt, config, options, "synthesizing", startTime, true);
+
+  if (synthResult.exitCode !== 0 || !synthResult.output) {
+    printWarning("synthesis failed, showing specialist outputs");
+    const joined = specialistOutputs.map((s) => `\n--- ${s.label} ---\n${s.output}`).join("");
+    return {
+      reviewContent: joined,
+      needsRevision: joined.toUpperCase().includes("NEEDS REVISION"),
+      fallback: true,
+    };
+  }
+
+  const synthesizedReview = synthResult.output;
+
+  // Phase 3: Verification
+  printStep(3, "verification");
+
+  const verifyPrompt = await buildVerificationPrompt(synthesizedReview, context);
+  const verifyResult = await runAgent(verifyPrompt, config, options, "verifying", startTime);
+
+  if (verifyResult.exitCode !== 0 || !verifyResult.output) {
+    printWarning("verification failed, showing synthesized review");
+    return {
+      reviewContent: synthesizedReview,
+      needsRevision: synthesizedReview.toUpperCase().includes("NEEDS REVISION"),
+      fallback: true,
+    };
+  }
+
+  const reviewContent = synthesizedReview + "\n" + verifyResult.output;
+  return {
+    reviewContent,
+    needsRevision: reviewContent.toUpperCase().includes("NEEDS REVISION"),
+    fallback: false,
+  };
+}
+
 export async function runReview(
   config: AgentConfig,
   options: RalphOptions,
@@ -63,73 +146,19 @@ export async function runReview(
 
   const startTime = Date.now();
 
-  // Phase 1: Specialists
-  printStep(1, "specialists", "4 parallel reviews");
+  const { reviewContent, fallback } = await runReviewPipeline(context, config, options, startTime);
 
-  const specialistPrompts = await Promise.all(
-    ([1, 2, 3, 4] as const).map((i) => buildSpecialistPrompt(i, context)),
-  );
-
-  const tasks = specialistPrompts.map((prompt, i) => ({
-    prompt,
-    label: SPECIALIST_LABELS[i],
-  }));
-
-  const results = await runAgentsParallel(tasks, config, options, startTime, SPECIALIST_COLORS);
-
-  const successful = results.filter((r) => r.exitCode === 0 && r.output);
-  const failed = results.filter((r) => r.exitCode !== 0 || !r.output);
-
-  if (successful.length === 0) {
+  if (reviewContent === undefined) {
     printError("all reviewers failed");
     process.exit(1);
   }
 
-  for (const f of failed) {
-    printWarning(`specialist "${f.label}" failed`);
+  if (fallback) {
+    process.stdout.write(reviewContent);
   }
 
-  // Phase 2: Synthesis
-  printStep(2, "synthesis");
-
-  const specialistOutputs = successful.map((r) => ({
-    label: r.label,
-    output: r.output,
-  }));
-
-  const synthPrompt = await buildSynthesisPrompt(specialistOutputs, context);
-  const synthResult = await runAgent(synthPrompt, config, options, "synthesizing", startTime, true);
-
-  let synthesizedReview: string | undefined;
-  let reviewToSave: string | undefined;
-
-  if (synthResult.exitCode !== 0 || !synthResult.output) {
-    printWarning("synthesis failed, showing specialist outputs");
-    const joined = specialistOutputs.map((s) => `\n--- ${s.label} ---\n${s.output}`).join("");
-    process.stdout.write(joined);
-    reviewToSave = joined;
-  } else {
-    synthesizedReview = synthResult.output;
-
-    // Phase 3: Verification
-    printStep(3, "verification");
-
-    const verifyPrompt = await buildVerificationPrompt(synthesizedReview, context);
-    const verifyResult = await runAgent(verifyPrompt, config, options, "verifying", startTime);
-
-    if (verifyResult.exitCode !== 0 || !verifyResult.output) {
-      printWarning("verification failed, showing synthesized review");
-      process.stdout.write(synthesizedReview);
-      reviewToSave = synthesizedReview;
-    } else {
-      reviewToSave = synthesizedReview + "\n" + verifyResult.output;
-    }
-  }
-
-  if (reviewToSave !== undefined) {
-    await saveReview(reviewToSave);
-    printKv("next", "ralph fix");
-  }
+  await saveReview(reviewContent);
+  printKv("next", "ralph fix");
 
   const elapsed = Math.floor((Date.now() - startTime) / 1000);
   console.log("");

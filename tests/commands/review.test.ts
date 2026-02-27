@@ -53,7 +53,8 @@ vi.mock("../../src/ui.js", () => ({
   printWarning: mocks.printWarning,
 }));
 
-import { runReview } from "../../src/commands/review.js";
+import { runReview, runReviewPipeline } from "../../src/commands/review.js";
+import type { CodeReviewContext } from "../../src/prompt.js";
 
 const defaultOptions: RalphOptions = {
   agent: "claude",
@@ -282,5 +283,119 @@ describe("runReview", () => {
       "\n--- Security & Perf ---\nreview 4";
     expect(mocks.saveReview).toHaveBeenCalledWith(expected);
     expect(mocks.printKv).toHaveBeenCalledWith("next", "ralph fix");
+  });
+});
+
+describe("runReviewPipeline", () => {
+  let consoleSpy: ReturnType<typeof vi.spyOn>;
+
+  const mockContext: CodeReviewContext = {
+    diffCmd: "git diff origin/main...HEAD",
+    scope: "branch",
+    diffStat: " src/foo.ts | 10 ++++\n 1 file changed",
+    commitLog: "abc123 some commit",
+    branch: "feature-branch",
+    description: "test review",
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    mocks.buildSpecialistPrompt.mockResolvedValue("specialist prompt");
+    mocks.buildSynthesisPrompt.mockResolvedValue("synthesis prompt");
+    mocks.buildVerificationPrompt.mockResolvedValue("verification prompt");
+
+    mocks.runAgentsParallel.mockResolvedValue([
+      { output: "review 1", exitCode: 0, label: "Correctness" },
+      { output: "review 2", exitCode: 0, label: "Code Quality" },
+      { output: "review 3", exitCode: 0, label: "Test Quality" },
+      { output: "review 4", exitCode: 0, label: "Security & Perf" },
+    ]);
+
+    mocks.runAgent
+      .mockResolvedValueOnce({ output: "synthesized review", exitCode: 0 })
+      .mockResolvedValueOnce({ output: "final report", exitCode: 0 });
+  });
+
+  afterEach(() => {
+    consoleSpy.mockRestore();
+  });
+
+  it("returns combined review content on full success", async () => {
+    const result = await runReviewPipeline(mockContext, agentConfig, defaultOptions, Date.now());
+
+    expect(result.reviewContent).toBe("synthesized review\nfinal report");
+    expect(result.fallback).toBe(false);
+  });
+
+  it("returns undefined reviewContent when all specialists fail", async () => {
+    mocks.runAgentsParallel.mockResolvedValue([
+      { output: "", exitCode: 1, label: "Correctness" },
+      { output: "", exitCode: 1, label: "Code Quality" },
+      { output: "", exitCode: 1, label: "Test Quality" },
+      { output: "", exitCode: 1, label: "Security & Perf" },
+    ]);
+
+    const result = await runReviewPipeline(mockContext, agentConfig, defaultOptions, Date.now());
+
+    expect(result.reviewContent).toBeUndefined();
+    expect(result.needsRevision).toBe(false);
+    expect(result.fallback).toBe(false);
+  });
+
+  it("returns fallback with joined specialist outputs when synthesis fails", async () => {
+    mocks.runAgent.mockReset();
+    mocks.runAgent.mockResolvedValueOnce({ output: "", exitCode: 1 });
+
+    const result = await runReviewPipeline(mockContext, agentConfig, defaultOptions, Date.now());
+
+    const expected =
+      "\n--- Correctness ---\nreview 1" +
+      "\n--- Code Quality ---\nreview 2" +
+      "\n--- Test Quality ---\nreview 3" +
+      "\n--- Security & Perf ---\nreview 4";
+    expect(result.reviewContent).toBe(expected);
+    expect(result.fallback).toBe(true);
+  });
+
+  it("returns fallback with synthesized review when verification fails", async () => {
+    mocks.runAgent.mockReset();
+    mocks.runAgent
+      .mockResolvedValueOnce({ output: "synthesized review", exitCode: 0 })
+      .mockResolvedValueOnce({ output: "", exitCode: 1 });
+
+    const result = await runReviewPipeline(mockContext, agentConfig, defaultOptions, Date.now());
+
+    expect(result.reviewContent).toBe("synthesized review");
+    expect(result.fallback).toBe(true);
+  });
+
+  it("sets needsRevision true when review contains NEEDS REVISION", async () => {
+    mocks.runAgent.mockReset();
+    mocks.runAgent
+      .mockResolvedValueOnce({ output: "synthesized review", exitCode: 0 })
+      .mockResolvedValueOnce({ output: "Verdict: NEEDS REVISION", exitCode: 0 });
+
+    const result = await runReviewPipeline(mockContext, agentConfig, defaultOptions, Date.now());
+
+    expect(result.needsRevision).toBe(true);
+  });
+
+  it("sets needsRevision false when review does not contain NEEDS REVISION", async () => {
+    const result = await runReviewPipeline(mockContext, agentConfig, defaultOptions, Date.now());
+
+    expect(result.needsRevision).toBe(false);
+  });
+
+  it("checks needsRevision case-insensitively", async () => {
+    mocks.runAgent.mockReset();
+    mocks.runAgent
+      .mockResolvedValueOnce({ output: "synthesized review", exitCode: 0 })
+      .mockResolvedValueOnce({ output: "needs revision found", exitCode: 0 });
+
+    const result = await runReviewPipeline(mockContext, agentConfig, defaultOptions, Date.now());
+
+    expect(result.needsRevision).toBe(true);
   });
 });
