@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { hasContent } from "./state.js";
+import { hasContent, GOAL_FILE } from "./state.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -25,7 +25,7 @@ export async function loadPrompt(filename: string): Promise<string> {
 
 export async function buildPlanPrompt(
   goal?: string,
-  goalFile: string = "GOAL.md",
+  goalFile: string = GOAL_FILE,
 ): Promise<string> {
   let prompt = await loadPrompt("plan.md");
   prompt += "\n\n## Goal\n\n";

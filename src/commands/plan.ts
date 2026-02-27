@@ -3,7 +3,7 @@ import type { AgentConfig, RalphOptions } from "../agent.js";
 import type { WorktreeInfo } from "../git.js";
 import { runRefine, DEFAULT_REFINE_ITERATIONS } from "./refine.js";
 import { buildPlanPrompt } from "../prompt.js";
-import { hasContent, countTasks, clearStateFiles } from "../state.js";
+import { hasContent, countTasks, clearStateFiles, GOAL_FILE } from "../state.js";
 import {
   dim,
   green,
@@ -49,8 +49,8 @@ export async function runPlan(
   let goalDisplay: string;
   if (goal) {
     goalDisplay = goal.length > 50 ? goal.slice(0, 50) + "..." : goal;
-  } else if (await hasContent("GOAL.md")) {
-    goalDisplay = `${dim("from")} GOAL.md`;
+  } else if (await hasContent(GOAL_FILE)) {
+    goalDisplay = `${dim("from")} ${GOAL_FILE}`;
   } else {
     goalDisplay = `${dim("audit mode")}`;
   }

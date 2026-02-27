@@ -29,6 +29,7 @@ vi.mock("../../src/state.js", () => ({
   hasContent: mocks.hasContent,
   countTasks: mocks.countTasks,
   clearStateFiles: mocks.clearStateFiles,
+  GOAL_FILE: "GOAL.md",
 }));
 
 vi.mock("../../src/prompt.js", () => ({

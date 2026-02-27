@@ -2,6 +2,7 @@ import { readFile, writeFile, unlink } from "node:fs/promises";
 
 const PLAN_FILE = "IMPLEMENTATION_PLAN.md";
 const PROGRESS_FILE = "progress.txt";
+export const GOAL_FILE = "GOAL.md";
 const REVIEW_FILE = "REVIEW.md";
 
 export async function hasContent(filePath: string): Promise<boolean> {
@@ -33,7 +34,7 @@ export async function saveReview(content: string): Promise<void> {
   await writeFile(REVIEW_FILE, content);
 }
 
-export const CLEANUP_FILES = [PLAN_FILE, PROGRESS_FILE, "GOAL.md", REVIEW_FILE];
+export const CLEANUP_FILES = [PLAN_FILE, PROGRESS_FILE, GOAL_FILE, REVIEW_FILE];
 
 export async function deleteStateFiles(files: string[]): Promise<string[]> {
   const deleted: string[] = [];

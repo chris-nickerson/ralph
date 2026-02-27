@@ -1,10 +1,10 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { writeFile, access, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { rmSync } from "node:fs";
 
-import { CLEANUP_FILES } from "../../src/state.js";
+import { CLEANUP_FILES, deleteStateFiles } from "../../src/state.js";
 import { runCleanup } from "../../src/commands/cleanup.js";
 
 describe("runCleanup", () => {
@@ -41,25 +41,52 @@ describe("runCleanup", () => {
     }
   });
 
-  it("does not throw when no files exist", async () => {
-    await expect(runCleanup({ force: true })).resolves.not.toThrow();
+  it("logs 'nothing to clean up' when no files exist", async () => {
+    const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      await runCleanup({ force: true });
+      expect(spy).toHaveBeenCalledWith(expect.stringContaining("nothing to clean up"));
+    } finally {
+      spy.mockRestore();
+    }
   });
 
-  it("only deletes files that exist", async () => {
+  it("deletes only the files that exist", async () => {
     await writeFile(join(dir, "IMPLEMENTATION_PLAN.md"), "plan");
-    await writeFile(join(dir, "REVIEW.md"), "review");
 
     await runCleanup({ force: true });
 
     expect(await exists("IMPLEMENTATION_PLAN.md")).toBe(false);
-    expect(await exists("REVIEW.md")).toBe(false);
+    for (const file of CLEANUP_FILES.filter((f) => f !== "IMPLEMENTATION_PLAN.md")) {
+      expect(await exists(file)).toBe(false);
+    }
   });
 
-  it("deletes a subset of files when only some exist", async () => {
-    await writeFile(join(dir, "progress.txt"), "progress");
+  it("throws in non-interactive mode when force is false", async () => {
+    await writeFile(join(dir, "IMPLEMENTATION_PLAN.md"), "plan");
+    await expect(runCleanup({ force: false })).rejects.toThrow("non-interactive");
+    expect(await exists("IMPLEMENTATION_PLAN.md")).toBe(true);
+  });
+});
 
-    await runCleanup({ force: true });
+describe("deleteStateFiles", () => {
+  const origCwd = process.cwd();
+  let dir: string;
 
-    expect(await exists("progress.txt")).toBe(false);
+  beforeEach(async () => {
+    dir = join(tmpdir(), `ralph-delete-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    await mkdir(dir, { recursive: true });
+    process.chdir(dir);
+  });
+
+  afterEach(() => {
+    process.chdir(origCwd);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("rethrows non-ENOENT errors from unlink", async () => {
+    const subdir = join(dir, "not-a-file");
+    await mkdir(subdir);
+    await expect(deleteStateFiles([subdir])).rejects.toThrow();
   });
 });

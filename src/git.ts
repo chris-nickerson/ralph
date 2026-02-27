@@ -3,6 +3,8 @@ import { copyFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import { promisify } from "node:util";
 
+import { GOAL_FILE } from "./state.js";
+
 const execFile = promisify(execFileCb);
 
 const git = (...args: string[]) =>
@@ -227,7 +229,7 @@ export async function createWorktree(
 
   await git("worktree", "add", "-b", branch, dir, "HEAD");
 
-  for (const f of ["IMPLEMENTATION_PLAN.md", "progress.txt", "GOAL.md"]) {
+  for (const f of ["IMPLEMENTATION_PLAN.md", "progress.txt", GOAL_FILE]) {
     try {
       await copyFile(f, join(dir, f));
     } catch {
