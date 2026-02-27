@@ -9,6 +9,7 @@ import {
   buildBuildPrompt,
   buildReviewPrompt,
   buildFinalReviewPrompt,
+  buildFixPrompt,
   loadRefinePrompt,
   buildSpecialistPrompt,
   buildSynthesisPrompt,
@@ -138,6 +139,49 @@ describe("buildFinalReviewPrompt", () => {
   it("skips diff range when no start hash", async () => {
     const prompt = await buildFinalReviewPrompt("", false);
     expect(prompt).not.toContain("## Diff Range");
+  });
+});
+
+describe("buildFixPrompt", () => {
+  const review = "## Critical\n\n### VALID - Null deref in foo.ts\nFix this.";
+
+  it("loads the fix prompt and includes review content", async () => {
+    const prompt = await buildFixPrompt(review, undefined, false);
+    expect(prompt).toContain("FIX mode");
+    expect(prompt).toContain("## Code Review Findings");
+    expect(prompt).toContain("Null deref in foo.ts");
+  });
+
+  it("appends additional instructions when provided", async () => {
+    const prompt = await buildFixPrompt(review, "be conservative", false);
+    expect(prompt).toContain("## Additional Instructions");
+    expect(prompt).toContain("be conservative");
+  });
+
+  it("does not include additional instructions section when not provided", async () => {
+    const prompt = await buildFixPrompt(review, undefined, false);
+    expect(prompt).not.toContain("## Additional Instructions");
+  });
+
+  it("appends no-commit override when noCommit is true", async () => {
+    const prompt = await buildFixPrompt(review, undefined, true);
+    expect(prompt).toContain("## Override: No Commits");
+    expect(prompt).toContain("Skip the Commit section above entirely");
+  });
+
+  it("does not append no-commit override when noCommit is false", async () => {
+    const prompt = await buildFixPrompt(review, undefined, false);
+    expect(prompt).not.toContain("## Override: No Commits");
+  });
+
+  it("includes all sections in correct order", async () => {
+    const prompt = await buildFixPrompt(review, "only critical", true);
+    const findingsIdx = prompt.indexOf("## Code Review Findings");
+    const instructionsIdx = prompt.indexOf("## Additional Instructions");
+    const overrideIdx = prompt.indexOf("## Override: No Commits");
+    expect(findingsIdx).toBeGreaterThan(-1);
+    expect(instructionsIdx).toBeGreaterThan(findingsIdx);
+    expect(overrideIdx).toBeGreaterThan(instructionsIdx);
   });
 });
 

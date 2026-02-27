@@ -93,6 +93,22 @@ export async function buildFinalReviewPrompt(
   return prompt;
 }
 
+export async function buildFixPrompt(
+  reviewContent: string,
+  instructions: string | undefined,
+  noCommit: boolean,
+): Promise<string> {
+  let prompt = await loadPrompt("fix.md");
+  prompt += "\n\n## Code Review Findings\n\n" + reviewContent;
+  if (instructions) {
+    prompt += "\n\n## Additional Instructions\n\n" + instructions;
+  }
+  if (noCommit) {
+    prompt += NO_COMMIT_OVERRIDE;
+  }
+  return prompt;
+}
+
 export async function loadRefinePrompt(
   phase: "investigate" | "review",
 ): Promise<string> {
