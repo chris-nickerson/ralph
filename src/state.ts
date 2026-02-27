@@ -2,6 +2,7 @@ import { readFile, writeFile } from "node:fs/promises";
 
 const PLAN_FILE = "IMPLEMENTATION_PLAN.md";
 const PROGRESS_FILE = "progress.txt";
+const REVIEW_FILE = "REVIEW.md";
 
 export async function hasContent(filePath: string): Promise<boolean> {
   try {
@@ -25,4 +26,23 @@ export async function countTasks(): Promise<number> {
 export async function clearStateFiles(): Promise<void> {
   await writeFile(PLAN_FILE, "");
   await writeFile(PROGRESS_FILE, "");
+}
+
+export async function hasReview(): Promise<boolean> {
+  return hasContent(REVIEW_FILE);
+}
+
+export async function saveReview(content: string): Promise<void> {
+  await writeFile(REVIEW_FILE, content);
+}
+
+export async function loadReview(): Promise<string> {
+  try {
+    return await readFile(REVIEW_FILE, "utf-8");
+  } catch (err: unknown) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+      throw new Error("no review found; run ralph review first");
+    }
+    throw err;
+  }
 }

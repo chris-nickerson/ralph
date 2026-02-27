@@ -14,6 +14,7 @@ import {
   buildVerificationPrompt,
 } from "../prompt.js";
 import type { CodeReviewContext } from "../prompt.js";
+import { saveReview } from "../state.js";
 import {
   dim,
   formatDuration,
@@ -97,13 +98,13 @@ export async function runReview(
   const synthResult = await runAgent(synthPrompt, config, options, "synthesizing", startTime, true);
 
   let synthesizedReview: string | undefined;
+  let reviewToSave: string | undefined;
 
   if (synthResult.exitCode !== 0 || !synthResult.output) {
     printWarning("synthesis failed, showing specialist outputs");
-    for (const s of specialistOutputs) {
-      process.stdout.write(`\n--- ${s.label} ---\n`);
-      process.stdout.write(s.output);
-    }
+    const joined = specialistOutputs.map((s) => `\n--- ${s.label} ---\n${s.output}`).join("");
+    process.stdout.write(joined);
+    reviewToSave = joined;
   } else {
     synthesizedReview = synthResult.output;
 
@@ -116,7 +117,15 @@ export async function runReview(
     if (verifyResult.exitCode !== 0 || !verifyResult.output) {
       printWarning("verification failed, showing synthesized review");
       process.stdout.write(synthesizedReview);
+      reviewToSave = synthesizedReview;
+    } else {
+      reviewToSave = verifyResult.output;
     }
+  }
+
+  if (reviewToSave !== undefined) {
+    await saveReview(reviewToSave);
+    printKv("next", "ralph fix");
   }
 
   const elapsed = Math.floor((Date.now() - startTime) / 1000);

@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { writeFile, unlink, mkdir } from "node:fs/promises";
+import { readFile, writeFile, unlink, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
-import { hasContent, countTasks, clearStateFiles } from "../src/state.js";
+import { hasContent, countTasks, clearStateFiles, hasReview, saveReview, loadReview } from "../src/state.js";
 
 describe("hasContent", () => {
   const dir = join(tmpdir(), `ralph-test-${Date.now()}`);
@@ -84,6 +84,60 @@ describe("countTasks", () => {
   it("does not count lines with - [ ] not at start", async () => {
     await writeFile(planFile, "  - [ ] indented\ntext - [ ] mid-line\n");
     expect(await countTasks()).toBe(0);
+  });
+});
+
+describe("hasReview / saveReview / loadReview", () => {
+  const origCwd = process.cwd();
+  const dir = join(tmpdir(), `ralph-test-review-${Date.now()}`);
+  const reviewFile = join(dir, "REVIEW.md");
+
+  beforeEach(async () => {
+    await mkdir(dir, { recursive: true });
+    process.chdir(dir);
+  });
+
+  afterEach(async () => {
+    process.chdir(origCwd);
+    try {
+      await unlink(reviewFile);
+    } catch {}
+  });
+
+  it("hasReview returns false when file does not exist", async () => {
+    expect(await hasReview()).toBe(false);
+  });
+
+  it("hasReview returns false when file is empty", async () => {
+    await writeFile(reviewFile, "");
+    expect(await hasReview()).toBe(false);
+  });
+
+  it("hasReview returns true after saving content", async () => {
+    await saveReview("# Review\n\nFindings here.");
+    expect(await hasReview()).toBe(true);
+  });
+
+  it("saveReview writes content to REVIEW.md", async () => {
+    await saveReview("review content");
+    const data = await readFile(reviewFile, "utf-8");
+    expect(data).toBe("review content");
+  });
+
+  it("saveReview overwrites existing content", async () => {
+    await writeFile(reviewFile, "old content");
+    await saveReview("new content");
+    const data = await readFile(reviewFile, "utf-8");
+    expect(data).toBe("new content");
+  });
+
+  it("loadReview returns saved content", async () => {
+    await saveReview("the review");
+    expect(await loadReview()).toBe("the review");
+  });
+
+  it("loadReview throws descriptive error when file does not exist", async () => {
+    await expect(loadReview()).rejects.toThrow("no review found; run ralph review first");
   });
 });
 

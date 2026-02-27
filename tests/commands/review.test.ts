@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   buildSpecialistPrompt: vi.fn(),
   buildSynthesisPrompt: vi.fn(),
   buildVerificationPrompt: vi.fn(),
+  saveReview: vi.fn(),
   printHeader: vi.fn(),
   printKv: vi.fn(),
   printStep: vi.fn(),
@@ -36,6 +37,10 @@ vi.mock("../../src/prompt.js", () => ({
   buildSpecialistPrompt: mocks.buildSpecialistPrompt,
   buildSynthesisPrompt: mocks.buildSynthesisPrompt,
   buildVerificationPrompt: mocks.buildVerificationPrompt,
+}));
+
+vi.mock("../../src/state.js", () => ({
+  saveReview: mocks.saveReview,
 }));
 
 vi.mock("../../src/ui.js", () => ({
@@ -88,6 +93,8 @@ function setupDefaults() {
   mocks.runAgent
     .mockResolvedValueOnce({ output: "synthesized review", exitCode: 0 })
     .mockResolvedValueOnce({ output: "final report", exitCode: 0 });
+
+  mocks.saveReview.mockResolvedValue(undefined);
 }
 
 describe("runReview", () => {
@@ -240,5 +247,39 @@ describe("runReview", () => {
   it("fetches commit log for branch scope", async () => {
     await runReview(agentConfig, defaultOptions);
     expect(mocks.getCommitLog).toHaveBeenCalledWith("origin/main...HEAD");
+  });
+
+  it("saves final report and prints next-step hint on full success", async () => {
+    await runReview(agentConfig, defaultOptions);
+
+    expect(mocks.saveReview).toHaveBeenCalledWith("final report");
+    expect(mocks.printKv).toHaveBeenCalledWith("next", "ralph fix");
+  });
+
+  it("saves synthesized review and prints next hint when verification fails", async () => {
+    mocks.runAgent.mockReset();
+    mocks.runAgent
+      .mockResolvedValueOnce({ output: "synthesized review", exitCode: 0 })
+      .mockResolvedValueOnce({ output: "", exitCode: 1 });
+
+    await runReview(agentConfig, defaultOptions);
+
+    expect(mocks.saveReview).toHaveBeenCalledWith("synthesized review");
+    expect(mocks.printKv).toHaveBeenCalledWith("next", "ralph fix");
+  });
+
+  it("saves joined specialist outputs and prints next hint when synthesis fails", async () => {
+    mocks.runAgent.mockReset();
+    mocks.runAgent.mockResolvedValueOnce({ output: "", exitCode: 1 });
+
+    await runReview(agentConfig, defaultOptions);
+
+    const expected =
+      "\n--- Correctness ---\nreview 1" +
+      "\n--- Code Quality ---\nreview 2" +
+      "\n--- Test Quality ---\nreview 3" +
+      "\n--- Security & Perf ---\nreview 4";
+    expect(mocks.saveReview).toHaveBeenCalledWith(expected);
+    expect(mocks.printKv).toHaveBeenCalledWith("next", "ralph fix");
   });
 });
