@@ -178,6 +178,7 @@ describe("runReview", () => {
     await expect(runReview(agentConfig, defaultOptions)).rejects.toThrow("EXIT");
     expect(exitSpy).toHaveBeenCalledWith(1);
     expect(mocks.printError).toHaveBeenCalledWith("all reviewers failed");
+    expect(mocks.saveReview).not.toHaveBeenCalled();
   });
 
   it("handles partial specialist failures gracefully", async () => {

@@ -3,7 +3,7 @@ import { readFile, writeFile, unlink, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
-import { hasContent, countTasks, clearStateFiles, hasReview, saveReview, loadReview } from "../src/state.js";
+import { hasContent, countTasks, clearStateFiles, saveReview, loadReview } from "../src/state.js";
 
 describe("hasContent", () => {
   const dir = join(tmpdir(), `ralph-test-${Date.now()}`);
@@ -87,7 +87,7 @@ describe("countTasks", () => {
   });
 });
 
-describe("hasReview / saveReview / loadReview", () => {
+describe("saveReview / loadReview", () => {
   const origCwd = process.cwd();
   const dir = join(tmpdir(), `ralph-test-review-${Date.now()}`);
   const reviewFile = join(dir, "REVIEW.md");
@@ -102,20 +102,6 @@ describe("hasReview / saveReview / loadReview", () => {
     try {
       await unlink(reviewFile);
     } catch {}
-  });
-
-  it("hasReview returns false when file does not exist", async () => {
-    expect(await hasReview()).toBe(false);
-  });
-
-  it("hasReview returns false when file is empty", async () => {
-    await writeFile(reviewFile, "");
-    expect(await hasReview()).toBe(false);
-  });
-
-  it("hasReview returns true after saving content", async () => {
-    await saveReview("# Review\n\nFindings here.");
-    expect(await hasReview()).toBe(true);
   });
 
   it("saveReview writes content to REVIEW.md", async () => {
@@ -139,6 +125,16 @@ describe("hasReview / saveReview / loadReview", () => {
   it("loadReview throws descriptive error when file does not exist", async () => {
     await expect(loadReview()).rejects.toThrow("no review found; run ralph review first");
   });
+
+  it("loadReview throws when file is empty", async () => {
+    await writeFile(reviewFile, "");
+    await expect(loadReview()).rejects.toThrow("no review found; run ralph review first");
+  });
+
+  it("loadReview throws when file is whitespace-only", async () => {
+    await writeFile(reviewFile, "   \n\n  ");
+    await expect(loadReview()).rejects.toThrow("no review found; run ralph review first");
+  });
 });
 
 describe("clearStateFiles", () => {
@@ -154,11 +150,13 @@ describe("clearStateFiles", () => {
     process.chdir(origCwd);
   });
 
-  it("truncates both files", async () => {
+  it("truncates all state files", async () => {
     await writeFile(join(dir, "IMPLEMENTATION_PLAN.md"), "# Plan");
     await writeFile(join(dir, "progress.txt"), "some progress");
+    await writeFile(join(dir, "REVIEW.md"), "# Review");
     await clearStateFiles();
     expect(await hasContent(join(dir, "IMPLEMENTATION_PLAN.md"))).toBe(false);
     expect(await hasContent(join(dir, "progress.txt"))).toBe(false);
+    expect(await hasContent(join(dir, "REVIEW.md"))).toBe(false);
   });
 });

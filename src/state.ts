@@ -26,10 +26,7 @@ export async function countTasks(): Promise<number> {
 export async function clearStateFiles(): Promise<void> {
   await writeFile(PLAN_FILE, "");
   await writeFile(PROGRESS_FILE, "");
-}
-
-export async function hasReview(): Promise<boolean> {
-  return hasContent(REVIEW_FILE);
+  await writeFile(REVIEW_FILE, "");
 }
 
 export async function saveReview(content: string): Promise<void> {
@@ -37,12 +34,18 @@ export async function saveReview(content: string): Promise<void> {
 }
 
 export async function loadReview(): Promise<string> {
+  let content: string;
   try {
-    return await readFile(REVIEW_FILE, "utf-8");
+    content = await readFile(REVIEW_FILE, "utf-8");
   } catch (err: unknown) {
-    if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+    const code = err instanceof Error && "code" in err ? (err as NodeJS.ErrnoException).code : undefined;
+    if (code === "ENOENT") {
       throw new Error("no review found; run ralph review first");
     }
     throw err;
   }
+  if (content.trim().length === 0) {
+    throw new Error("no review found; run ralph review first");
+  }
+  return content;
 }
