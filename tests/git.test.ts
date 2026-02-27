@@ -234,6 +234,13 @@ describe("parseReviewTarget", () => {
     });
   });
 
+  it("throws for flag-like arguments", async () => {
+    const { parseReviewTarget } = await import("../src/git.js");
+    expect(() => parseReviewTarget(["--all"], { staged: false })).toThrow(
+      "invalid target '--all' — flags are not valid targets",
+    );
+  });
+
   it("returns ref for a plain ref", async () => {
     const { parseReviewTarget } = await import("../src/git.js");
     expect(parseReviewTarget(["main"], { staged: false })).toEqual({
@@ -312,6 +319,17 @@ describe("getCommitSubject", () => {
     const { getCommitSubject } = await import("../src/git.js");
     expect(await getCommitSubject("abc123")).toBe("fix: resolve null pointer");
   });
+
+  it("throws a clear error on failure", async () => {
+    vi.doMock("node:child_process", () => ({
+      execFile: mockExecFileError(() => new Error("bad object")),
+    }));
+
+    const { getCommitSubject } = await import("../src/git.js");
+    await expect(getCommitSubject("deadbeef")).rejects.toThrow(
+      "failed to read commit subject for 'deadbeef'",
+    );
+  });
 });
 
 describe("resolveReviewTarget", () => {
@@ -372,6 +390,17 @@ describe("resolveReviewTarget", () => {
       range: "main...feature",
       description: "main...feature",
     });
+  });
+
+  it("throws for range with invalid endpoint", async () => {
+    vi.doMock("node:child_process", () => ({
+      execFile: mockExecFileError(() => new Error("not found")),
+    }));
+
+    const { resolveReviewTarget } = await import("../src/git.js");
+    await expect(
+      resolveReviewTarget({ type: "range", range: "bad..HEAD" }),
+    ).rejects.toThrow("unknown git ref");
   });
 
   it("resolves ref target with ...HEAD suffix", async () => {
@@ -475,6 +504,25 @@ describe("resolveReviewTarget", () => {
       diffCmd: "git diff origin/master...HEAD",
       scope: "branch",
       range: "origin/master...HEAD",
+      description: "auto-detected",
+    });
+  });
+
+  it("auto-detects working diff on master branch", async () => {
+    vi.doMock("node:child_process", () => ({
+      execFile: mockExecFile((cmd, args) => {
+        if (args[0] === "branch") return { stdout: "master\n", stderr: "" };
+        if (args[0] === "diff") return { stdout: "some changes\n", stderr: "" };
+        return { stdout: "", stderr: "" };
+      }),
+    }));
+
+    const { resolveReviewTarget } = await import("../src/git.js");
+    const result = await resolveReviewTarget({ type: "auto" });
+    expect(result).toEqual({
+      diffCmd: "git diff HEAD",
+      scope: "working",
+      range: "HEAD",
       description: "auto-detected",
     });
   });

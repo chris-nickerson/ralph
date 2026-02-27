@@ -43,6 +43,10 @@ export function parseReviewTarget(
 
   const arg = args[0];
 
+  if (arg.startsWith("-")) {
+    throw new Error(`invalid target '${arg}' — flags are not valid targets`);
+  }
+
   if (arg.includes("..")) {
     return { type: "range", range: arg };
   }
@@ -63,8 +67,12 @@ export async function validateRef(ref: string): Promise<void> {
 }
 
 export async function getCommitSubject(ref: string): Promise<string> {
-  const { stdout } = await execFile("git", ["log", "-1", "--format=%s", ref]);
-  return stdout.trim();
+  try {
+    const { stdout } = await execFile("git", ["log", "-1", "--format=%s", ref]);
+    return stdout.trim();
+  } catch {
+    throw new Error(`failed to read commit subject for '${ref}'`);
+  }
 }
 
 export async function resolveReviewTarget(
@@ -80,6 +88,10 @@ export async function resolveReviewTarget(
   }
 
   if (target.type === "range") {
+    const parts = target.range.split(/\.{3}|\.{2}/);
+    for (const part of parts.filter(Boolean)) {
+      await validateRef(part);
+    }
     return {
       diffCmd: `git diff ${target.range}`,
       scope: "branch",
