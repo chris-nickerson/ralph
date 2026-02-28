@@ -68,4 +68,13 @@ Produce the review in this exact markdown format:
 [Summary]
 ```
 
+## Machine-Readable Signal
+
+After your complete review output, emit exactly one of these on the very last line:
+
+<signal>APPROVED</signal>
+<signal>NEEDS_REVISION</signal>
+
+This signal must be the final line of your response. Do not write anything after it.
+
 Do NOT invent findings that aren't in the specialist outputs. Do NOT drop findings without justification. Be faithful to what the specialists reported while applying the synthesis rules.

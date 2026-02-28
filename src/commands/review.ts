@@ -15,6 +15,7 @@ import {
   buildVerificationPrompt,
 } from "../prompt.js";
 import type { CodeReviewContext } from "../prompt.js";
+import { parseSignal } from "../signal.js";
 import { saveReview } from "../state.js";
 import {
   dim,
@@ -25,10 +26,6 @@ import {
   printError,
   printWarning,
 } from "../ui.js";
-
-function checkNeedsRevision(text: string): boolean {
-  return text.toUpperCase().includes("NEEDS REVISION");
-}
 
 const SPECIALIST_LABELS = [
   "Correctness",
@@ -92,7 +89,7 @@ export async function runReviewPipeline(
     const joined = specialistOutputs.map((s) => `\n--- ${s.label} ---\n${s.output}`).join("");
     return {
       reviewContent: joined,
-      needsRevision: checkNeedsRevision(joined),
+      needsRevision: parseSignal(joined) === "NEEDS_REVISION",
       fallback: true,
     };
   }
@@ -109,7 +106,7 @@ export async function runReviewPipeline(
     printWarning("verification failed, showing synthesized review");
     return {
       reviewContent: synthesizedReview,
-      needsRevision: checkNeedsRevision(synthesizedReview),
+      needsRevision: parseSignal(synthesizedReview) === "NEEDS_REVISION",
       fallback: true,
     };
   }
@@ -117,7 +114,7 @@ export async function runReviewPipeline(
   const reviewContent = synthesizedReview + "\n" + verifyResult.output;
   return {
     reviewContent,
-    needsRevision: checkNeedsRevision(verifyResult.output),
+    needsRevision: parseSignal(verifyResult.output) === "NEEDS_REVISION",
     fallback: false,
   };
 }

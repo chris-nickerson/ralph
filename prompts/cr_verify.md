@@ -76,7 +76,16 @@ Use this exact format:
 - X findings dismissed (FALSE POSITIVE)
 
 ## Adjusted Verdict: **APPROVED** / **NEEDS REVISION**
-[Only include if the overall verdict changed from the synthesis. Explain why.]
+[Explain whether the overall verdict holds or changed, and why.]
 ```
+
+## Machine-Readable Signal
+
+After your complete output, emit exactly one of these on the very last line:
+
+<signal>APPROVED</signal>
+<signal>NEEDS_REVISION</signal>
+
+This signal must be the final line of your response. Do not write anything after it.
 
 The fix agent reads the full document (synthesis + your verification). It will use the synthesis for file paths, code snippets, and suggested fixes. It will use your verdicts to know which findings to act on and which to skip. Do not repeat information already in the synthesis.
