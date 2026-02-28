@@ -40,6 +40,7 @@ describe("CLI --help", () => {
     expect(stdout).toContain("build");
     expect(stdout).toContain("update");
     expect(stdout).toContain("cleanup");
+    expect(stdout).toContain("yolo");
   });
 
   it("shows all global options", async () => {
@@ -104,6 +105,12 @@ describe("CLI argument parsing", () => {
     const { stdout } = await runCli(["cleanup", "--help"]);
     expect(stdout).toContain("cleanup");
     expect(stdout).toContain("Remove ralph temp files");
+  });
+
+  it("yolo command requires a task argument", async () => {
+    const { stdout } = await runCli(["yolo", "--help"]);
+    expect(stdout).toContain("<task>");
+    expect(stdout).toContain("Full autonomous pipeline");
   });
 
   it("rejects unknown options", async () => {

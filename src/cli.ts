@@ -158,6 +158,19 @@ program
   });
 
 program
+  .command("yolo <task>")
+  .description("Full autonomous pipeline: plan, refine, build, review, fix")
+  .action(async (task: string) => {
+    const options = makeOptions(program);
+    const config = validateAgent(options.agent);
+    checkAgentInstalled(config);
+    const wt = options.worktree ? await setupWorktree("yolo") : undefined;
+    const { runYolo } = await import("./commands/yolo.js");
+    await runYolo(task, config, options, wt);
+    worktreeDone = true;
+  });
+
+program
   .command("update")
   .description("Update to latest version")
   .action(async () => {
