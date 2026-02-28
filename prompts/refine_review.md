@@ -28,6 +28,6 @@ Assess the plan as a senior engineer would before greenlighting implementation:
 ## Output
 
 - If you make substantial changes (removing tasks, restructuring, changing approach): describe what changed and why. Do NOT signal ready — let the next phase evaluate your changes.
-- If the plan is solid, or solid after minor adjustments: provide a brief assessment (and note adjustments, if any), then output `<done>PLAN_READY</done>` as the very last line
+- If the plan is solid, or solid after minor adjustments: provide a brief assessment (and note adjustments, if any), then output `<signal>PLAN_READY</signal>` as the very last line
 
 The signal must be the final line of your response. Do not write anything after it, and do not mention it unless you are using it.

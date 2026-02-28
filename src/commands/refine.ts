@@ -2,6 +2,7 @@ import { runAgent } from "../agent.js";
 import type { AgentConfig, RalphOptions } from "../agent.js";
 import type { WorktreeInfo } from "../git.js";
 import { loadRefinePrompt } from "../prompt.js";
+import { parseSignal } from "../signal.js";
 import { hasContent, countTasks } from "../state.js";
 import {
   dim,
@@ -104,8 +105,7 @@ export async function runRefine(
     }
     consecutiveFailures = 0;
 
-    const lastLines = output.split("\n").slice(-5).join("\n");
-    if (lastLines.includes("<done>PLAN_READY</done>")) {
+    if (parseSignal(output) === "PLAN_READY") {
       consecutiveReady++;
       console.log(
         `  ${dim(`${phase}: plan is ready (${consecutiveReady}/2)`)}`,

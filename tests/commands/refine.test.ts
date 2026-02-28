@@ -113,7 +113,7 @@ describe("runRefine", () => {
     vi.useFakeTimers();
 
     mocks.runAgent
-      .mockResolvedValueOnce({ output: "analysis\n<done>PLAN_READY</done>\n", exitCode: 0 })
+      .mockResolvedValueOnce({ output: "analysis\n<signal>PLAN_READY</signal>\n", exitCode: 0 })
       .mockResolvedValueOnce({ output: "more work\n", exitCode: 0 })
       .mockResolvedValue({ output: "still working", exitCode: 0 });
 
@@ -135,8 +135,8 @@ describe("runRefine", () => {
     vi.useFakeTimers();
 
     mocks.runAgent
-      .mockResolvedValueOnce({ output: "lines\n<done>PLAN_READY</done>\n", exitCode: 0 })
-      .mockResolvedValueOnce({ output: "lines\n<done>PLAN_READY</done>\n", exitCode: 0 });
+      .mockResolvedValueOnce({ output: "lines\n<signal>PLAN_READY</signal>\n", exitCode: 0 })
+      .mockResolvedValueOnce({ output: "lines\n<signal>PLAN_READY</signal>\n", exitCode: 0 });
 
     const promise = runRefine(10, agentConfig, defaultOptions);
 
@@ -154,9 +154,9 @@ describe("runRefine", () => {
     vi.useFakeTimers();
 
     mocks.runAgent
-      .mockResolvedValueOnce({ output: "<done>PLAN_READY</done>\n", exitCode: 0 })
+      .mockResolvedValueOnce({ output: "<signal>PLAN_READY</signal>\n", exitCode: 0 })
       .mockResolvedValueOnce({ output: "no signal here\n", exitCode: 0 })
-      .mockResolvedValueOnce({ output: "<done>PLAN_READY</done>\n", exitCode: 0 })
+      .mockResolvedValueOnce({ output: "<signal>PLAN_READY</signal>\n", exitCode: 0 })
       .mockResolvedValue({ output: "no signal\n", exitCode: 0 });
 
     const promise = runRefine(5, agentConfig, defaultOptions);
@@ -207,8 +207,8 @@ describe("runRefine", () => {
 
     mocks.runAgent
       .mockResolvedValueOnce({ output: "", exitCode: 1 })
-      .mockResolvedValueOnce({ output: "lines\n<done>PLAN_READY</done>\n", exitCode: 0 })
-      .mockResolvedValueOnce({ output: "lines\n<done>PLAN_READY</done>\n", exitCode: 0 });
+      .mockResolvedValueOnce({ output: "lines\n<signal>PLAN_READY</signal>\n", exitCode: 0 })
+      .mockResolvedValueOnce({ output: "lines\n<signal>PLAN_READY</signal>\n", exitCode: 0 });
 
     const promise = runRefine(10, agentConfig, defaultOptions);
 
@@ -224,10 +224,10 @@ describe("runRefine", () => {
     vi.useFakeTimers();
 
     mocks.runAgent
-      .mockResolvedValueOnce({ output: "<done>PLAN_READY</done>\n", exitCode: 0 })
+      .mockResolvedValueOnce({ output: "<signal>PLAN_READY</signal>\n", exitCode: 0 })
       .mockResolvedValueOnce({ output: "", exitCode: 1 })
-      .mockResolvedValueOnce({ output: "<done>PLAN_READY</done>\n", exitCode: 0 })
-      .mockResolvedValueOnce({ output: "<done>PLAN_READY</done>\n", exitCode: 0 });
+      .mockResolvedValueOnce({ output: "<signal>PLAN_READY</signal>\n", exitCode: 0 })
+      .mockResolvedValueOnce({ output: "<signal>PLAN_READY</signal>\n", exitCode: 0 });
 
     const promise = runRefine(10, agentConfig, defaultOptions);
 
