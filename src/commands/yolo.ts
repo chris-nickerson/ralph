@@ -4,7 +4,7 @@ import type { WorktreeInfo } from "../git.js";
 import { buildPlanPrompt } from "../prompt.js";
 import { clearStateFiles, hasContent, countTasks } from "../state.js";
 import { runRefine, DEFAULT_REFINE_ITERATIONS } from "./refine.js";
-import { runBuild } from "./build.js";
+import { runBuild, isSuccessStatus } from "./build.js";
 import type { BuildResult } from "./build.js";
 import {
   dim,
@@ -13,12 +13,16 @@ import {
   printError,
 } from "../ui.js";
 
+export interface YoloResult {
+  status: "completed" | "plan_failed" | "build_failed";
+}
+
 export async function runYolo(
   goal: string,
   config: AgentConfig,
   options: RalphOptions,
   worktreeInfo?: WorktreeInfo,
-): Promise<void> {
+): Promise<YoloResult> {
   options = { ...options, force: true };
 
   const goalDisplay = goal.length > 50 ? goal.slice(0, 50) + "..." : goal;
@@ -42,11 +46,11 @@ export async function runYolo(
 
   const startTime = Date.now();
   const prompt = await buildPlanPrompt(goal);
-  await runAgent(prompt, config, options, "planning", startTime);
+  const { exitCode } = await runAgent(prompt, config, options, "planning", startTime);
 
-  if (!(await hasContent("IMPLEMENTATION_PLAN.md"))) {
+  if (exitCode !== 0 || !(await hasContent("IMPLEMENTATION_PLAN.md"))) {
     printError("agent did not create a plan");
-    process.exit(1);
+    return { status: "plan_failed" };
   }
 
   const taskCount = await countTasks();
@@ -61,7 +65,8 @@ export async function runYolo(
   // Build phase
   const result: BuildResult = await runBuild(10, config, options, worktreeInfo);
 
-  if (result.status === "agent_failed" || result.status === "no_plan" || result.status === "no_head") {
-    process.exit(1);
+  if (!isSuccessStatus(result.status)) {
+    return { status: "build_failed" };
   }
+  return { status: "completed" };
 }

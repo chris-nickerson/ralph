@@ -123,10 +123,10 @@ program
     const wt = options.worktree
       ? await setupWorktree("build")
       : undefined;
-    const { runBuild } = await import("./commands/build.js");
+    const { runBuild, isSuccessStatus } = await import("./commands/build.js");
     const result = await runBuild(max, config, options, wt);
     worktreeDone = true;
-    process.exit(result.status === "completed" || result.status === "limit_reached" || result.status === "no_tasks" ? 0 : 1);
+    process.exit(isSuccessStatus(result.status) ? 0 : 1);
   });
 
 program
@@ -166,8 +166,9 @@ program
     checkAgentInstalled(config);
     const wt = options.worktree ? await setupWorktree("yolo") : undefined;
     const { runYolo } = await import("./commands/yolo.js");
-    await runYolo(task, config, options, wt);
+    const result = await runYolo(task, config, options, wt);
     worktreeDone = true;
+    if (result.status !== "completed") process.exit(1);
   });
 
 program

@@ -25,6 +25,7 @@ vi.mock("../../src/commands/refine.js", () => ({
 
 vi.mock("../../src/commands/build.js", () => ({
   runBuild: mocks.runBuild,
+  isSuccessStatus: (s: string) => s === "completed" || s === "limit_reached" || s === "no_tasks",
 }));
 
 vi.mock("../../src/state.js", () => ({
@@ -65,14 +66,10 @@ const defaultOptions: RalphOptions = {
 const agentConfig = { name: "claude", command: "claude", args: ["-p"] };
 
 describe("runYolo", () => {
-  let exitSpy: ReturnType<typeof vi.spyOn>;
   let consoleSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    exitSpy = vi.spyOn(process, "exit").mockImplementation((() => {
-      throw new Error("EXIT");
-    }) as never);
     consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
     mocks.runAgent.mockResolvedValue({ output: "done", exitCode: 0 });
@@ -120,12 +117,24 @@ describe("runYolo", () => {
     );
   });
 
-  it("exits with error when plan agent fails to create plan", async () => {
+  it("returns plan_failed when plan agent fails to create plan", async () => {
     mocks.hasContent.mockResolvedValue(false);
 
-    await expect(runYolo("goal", agentConfig, defaultOptions)).rejects.toThrow("EXIT");
-    expect(exitSpy).toHaveBeenCalledWith(1);
+    const result = await runYolo("goal", agentConfig, defaultOptions);
+    expect(result).toEqual({ status: "plan_failed" });
     expect(mocks.printError).toHaveBeenCalledWith("agent did not create a plan");
+    expect(mocks.runRefine).not.toHaveBeenCalled();
+    expect(mocks.runBuild).not.toHaveBeenCalled();
+  });
+
+  it("returns plan_failed when plan agent exits with non-zero code", async () => {
+    mocks.runAgent.mockResolvedValue({ output: "", exitCode: 1 });
+
+    const result = await runYolo("goal", agentConfig, defaultOptions);
+    expect(result).toEqual({ status: "plan_failed" });
+    expect(mocks.printError).toHaveBeenCalledWith("agent did not create a plan");
+    expect(mocks.runRefine).not.toHaveBeenCalled();
+    expect(mocks.runBuild).not.toHaveBeenCalled();
   });
 
   it("calls runRefine after plan creation", async () => {
@@ -153,32 +162,32 @@ describe("runYolo", () => {
     );
   });
 
-  it("exits 1 when build fails with agent_failed", async () => {
+  it("returns build_failed when build fails with agent_failed", async () => {
     mocks.runBuild.mockResolvedValue({ status: "agent_failed", iterations: 1 });
 
-    await expect(runYolo("goal", agentConfig, defaultOptions)).rejects.toThrow("EXIT");
-    expect(exitSpy).toHaveBeenCalledWith(1);
+    const result = await runYolo("goal", agentConfig, defaultOptions);
+    expect(result).toEqual({ status: "build_failed" });
   });
 
-  it("completes successfully when build returns completed", async () => {
+  it("returns completed when build returns completed", async () => {
     mocks.runBuild.mockResolvedValue({ status: "completed", iterations: 3 });
 
-    await runYolo("goal", agentConfig, defaultOptions);
-    expect(exitSpy).not.toHaveBeenCalled();
+    const result = await runYolo("goal", agentConfig, defaultOptions);
+    expect(result).toEqual({ status: "completed" });
   });
 
-  it("completes successfully when build returns limit_reached", async () => {
+  it("returns completed when build returns limit_reached", async () => {
     mocks.runBuild.mockResolvedValue({ status: "limit_reached", iterations: 10 });
 
-    await runYolo("goal", agentConfig, defaultOptions);
-    expect(exitSpy).not.toHaveBeenCalled();
+    const result = await runYolo("goal", agentConfig, defaultOptions);
+    expect(result).toEqual({ status: "completed" });
   });
 
-  it("completes successfully when build returns no_tasks", async () => {
+  it("returns completed when build returns no_tasks", async () => {
     mocks.runBuild.mockResolvedValue({ status: "no_tasks", iterations: 0 });
 
-    await runYolo("goal", agentConfig, defaultOptions);
-    expect(exitSpy).not.toHaveBeenCalled();
+    const result = await runYolo("goal", agentConfig, defaultOptions);
+    expect(result).toEqual({ status: "completed" });
   });
 
   it("truncates long goals to 50 chars", async () => {
@@ -221,17 +230,28 @@ describe("runYolo", () => {
     );
   });
 
-  it("exits 1 when build returns no_plan", async () => {
+  it("returns build_failed when build returns no_plan", async () => {
     mocks.runBuild.mockResolvedValue({ status: "no_plan", iterations: 0 });
 
-    await expect(runYolo("goal", agentConfig, defaultOptions)).rejects.toThrow("EXIT");
-    expect(exitSpy).toHaveBeenCalledWith(1);
+    const result = await runYolo("goal", agentConfig, defaultOptions);
+    expect(result).toEqual({ status: "build_failed" });
   });
 
-  it("exits 1 when build returns no_head", async () => {
+  it("returns build_failed when build returns no_head", async () => {
     mocks.runBuild.mockResolvedValue({ status: "no_head", iterations: 0 });
 
-    await expect(runYolo("goal", agentConfig, defaultOptions)).rejects.toThrow("EXIT");
-    expect(exitSpy).toHaveBeenCalledWith(1);
+    const result = await runYolo("goal", agentConfig, defaultOptions);
+    expect(result).toEqual({ status: "build_failed" });
+  });
+
+  it("executes phases in order: clear → plan → refine → build", async () => {
+    const callOrder: string[] = [];
+    mocks.clearStateFiles.mockImplementation(async () => { callOrder.push("clear"); });
+    mocks.runAgent.mockImplementation(async () => { callOrder.push("plan"); return { output: "", exitCode: 0 }; });
+    mocks.runRefine.mockImplementation(async () => { callOrder.push("refine"); });
+    mocks.runBuild.mockImplementation(async () => { callOrder.push("build"); return { status: "completed", iterations: 1 }; });
+
+    await runYolo("goal", agentConfig, defaultOptions);
+    expect(callOrder).toEqual(["clear", "plan", "refine", "build"]);
   });
 });

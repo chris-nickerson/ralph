@@ -27,6 +27,10 @@ export interface BuildResult {
   iterations: number;
 }
 
+export function isSuccessStatus(status: BuildResult["status"]): boolean {
+  return status === "completed" || status === "limit_reached" || status === "no_tasks";
+}
+
 const SCRIPT_NAME = "ralph";
 
 function sleep(ms: number): Promise<void> {
