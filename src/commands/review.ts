@@ -89,7 +89,7 @@ export async function runReviewPipeline(
     const joined = specialistOutputs.map((s) => `\n--- ${s.label} ---\n${s.output}`).join("");
     return {
       reviewContent: joined,
-      needsRevision: parseSignal(joined) === "NEEDS_REVISION",
+      needsRevision: true,
       fallback: true,
     };
   }
@@ -104,17 +104,25 @@ export async function runReviewPipeline(
 
   if (verifyResult.exitCode !== 0 || !verifyResult.output) {
     printWarning("verification failed, showing synthesized review");
+    const synthSignal = parseSignal(synthesizedReview);
+    if (synthSignal === null) {
+      printWarning("no signal in synthesis output, assuming revision needed");
+    }
     return {
       reviewContent: synthesizedReview,
-      needsRevision: parseSignal(synthesizedReview) === "NEEDS_REVISION",
+      needsRevision: synthSignal !== "APPROVED",
       fallback: true,
     };
   }
 
   const reviewContent = synthesizedReview + "\n" + verifyResult.output;
+  const verifySignal = parseSignal(verifyResult.output);
+  if (verifySignal === null) {
+    printWarning("no signal in verification output");
+  }
   return {
     reviewContent,
-    needsRevision: parseSignal(verifyResult.output) === "NEEDS_REVISION",
+    needsRevision: verifySignal === "NEEDS_REVISION",
     fallback: false,
   };
 }

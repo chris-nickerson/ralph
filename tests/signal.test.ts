@@ -26,8 +26,9 @@ describe("parseSignal", () => {
     expect(parseSignal("")).toBeNull();
   });
 
-  it("is case-sensitive and returns exact token", () => {
-    expect(parseSignal("<signal>plan_ready</signal>")).toBe("plan_ready");
+  it("returns null for unrecognized signal values", () => {
+    expect(parseSignal("<signal>plan_ready</signal>")).toBeNull();
+    expect(parseSignal("<signal>UNKNOWN</signal>")).toBeNull();
   });
 
   it("does not match the old done format", () => {
