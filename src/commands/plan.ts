@@ -22,12 +22,17 @@ import {
 
 const SCRIPT_NAME = "ralph";
 
+export interface PlanResult {
+  status: "created" | "cancelled" | "failed";
+  taskCount: number;
+}
+
 export async function runPlan(
   goal: string | undefined,
   config: AgentConfig,
   options: RalphOptions,
   worktreeInfo?: WorktreeInfo,
-): Promise<void> {
+): Promise<PlanResult> {
   const hasPlan = await hasContent("IMPLEMENTATION_PLAN.md");
   const hasProgress = await hasContent("progress.txt");
 
@@ -40,7 +45,7 @@ export async function runPlan(
     const ok = await confirm("Continue?", "n", options.force);
     if (!ok) {
       console.log(`${dim("Cancelled.")}`);
-      process.exit(0);
+      return { status: "cancelled", taskCount: 0 };
     }
   }
 
@@ -74,7 +79,7 @@ export async function runPlan(
 
   if (!(await hasContent("IMPLEMENTATION_PLAN.md"))) {
     printError("agent did not create a plan");
-    process.exit(1);
+    return { status: "failed", taskCount: 0 };
   }
 
   const taskCount = await countTasks();
@@ -90,7 +95,7 @@ export async function runPlan(
 
   if (!options.noRefine) {
     await runRefine(DEFAULT_REFINE_ITERATIONS, config, options, worktreeInfo);
-    return;
+    return { status: "created", taskCount };
   }
 
   if (worktreeInfo) {
@@ -100,4 +105,6 @@ export async function runPlan(
     console.log(`  ${dim("Build:")}   ${SCRIPT_NAME} build`);
     console.log("");
   }
+
+  return { status: "created", taskCount };
 }

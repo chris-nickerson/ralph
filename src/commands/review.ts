@@ -127,17 +127,21 @@ export async function runReviewPipeline(
   };
 }
 
+export interface ReviewResult {
+  status: "completed" | "empty_diff" | "all_failed";
+}
+
 export async function runReview(
   config: AgentConfig,
   options: RalphOptions,
   target: ReviewTarget = { type: "auto" },
-): Promise<void> {
+): Promise<ReviewResult> {
   const { diffCmd, scope, range, description } = await resolveReviewTarget(target);
 
   const empty = await isDiffEmpty(range);
   if (empty) {
     printError("no changes to review");
-    process.exit(1);
+    return { status: "empty_diff" };
   }
 
   const branch = await getCurrentBranch();
@@ -159,7 +163,7 @@ export async function runReview(
 
   if (reviewContent === undefined) {
     printError("all reviewers failed");
-    process.exit(1);
+    return { status: "all_failed" };
   }
 
   if (fallback) {
@@ -172,4 +176,6 @@ export async function runReview(
   const elapsed = Math.floor((Date.now() - startTime) / 1000);
   console.log("");
   console.log(dim(`  completed in ${formatDuration(elapsed)}`));
+
+  return { status: "completed" };
 }

@@ -10,17 +10,21 @@ import {
   printError,
 } from "../ui.js";
 
+export interface FixResult {
+  status: "completed" | "no_review";
+}
+
 export async function runFix(
   instructions: string | undefined,
   config: AgentConfig,
   options: RalphOptions,
-): Promise<void> {
+): Promise<FixResult> {
   let reviewContent: string;
   try {
     reviewContent = await loadReview();
   } catch (err: unknown) {
     printError(err instanceof Error ? err.message : String(err));
-    process.exit(1);
+    return { status: "no_review" };
   }
 
   const prompt = await buildFixPrompt(reviewContent, instructions, options.noCommit);
@@ -40,4 +44,6 @@ export async function runFix(
   const elapsed = Math.floor((Date.now() - startTime) / 1000);
   console.log("");
   console.log(dim(`  completed in ${formatDuration(elapsed)}`));
+
+  return { status: "completed" };
 }

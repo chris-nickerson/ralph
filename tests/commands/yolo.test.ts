@@ -2,20 +2,15 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { RalphOptions } from "../../src/agent.js";
 
 const mocks = vi.hoisted(() => ({
-  runAgent: vi.fn(),
+  runPlan: vi.fn(),
   runRefine: vi.fn(),
   runBuild: vi.fn(),
-  clearStateFiles: vi.fn(),
-  hasContent: vi.fn(),
-  countTasks: vi.fn(),
-  buildPlanPrompt: vi.fn(),
   printHeader: vi.fn(),
   printKv: vi.fn(),
-  printError: vi.fn(),
 }));
 
-vi.mock("../../src/agent.js", () => ({
-  runAgent: mocks.runAgent,
+vi.mock("../../src/commands/plan.js", () => ({
+  runPlan: mocks.runPlan,
 }));
 
 vi.mock("../../src/commands/refine.js", () => ({
@@ -31,26 +26,10 @@ vi.mock("../../src/commands/build.js", async (importOriginal) => {
   };
 });
 
-vi.mock("../../src/state.js", () => ({
-  clearStateFiles: mocks.clearStateFiles,
-  hasContent: mocks.hasContent,
-  countTasks: mocks.countTasks,
-}));
-
-vi.mock("../../src/prompt.js", () => ({
-  buildPlanPrompt: mocks.buildPlanPrompt,
-}));
-
 vi.mock("../../src/ui.js", () => ({
   dim: (s: string) => s,
-  green: (s: string) => s,
-  SYM_DOT: ".",
-  SYM_CHECK: "done",
-  line: () => "-".repeat(74),
-  formatDuration: (s: number) => `${s}s`,
   printHeader: mocks.printHeader,
   printKv: mocks.printKv,
-  printError: mocks.printError,
 }));
 
 import { runYolo } from "../../src/commands/yolo.js";
@@ -75,11 +54,7 @@ describe("runYolo", () => {
     vi.clearAllMocks();
     consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-    mocks.runAgent.mockResolvedValue({ output: "done", exitCode: 0 });
-    mocks.hasContent.mockResolvedValue(true);
-    mocks.countTasks.mockResolvedValue(3);
-    mocks.clearStateFiles.mockResolvedValue(undefined);
-    mocks.buildPlanPrompt.mockResolvedValue("plan prompt");
+    mocks.runPlan.mockResolvedValue({ status: "created", taskCount: 3 });
     mocks.runRefine.mockResolvedValue({ done: true, iterations: 2 });
     mocks.runBuild.mockResolvedValue({ status: "completed", iterations: 3 });
   });
@@ -103,39 +78,30 @@ describe("runYolo", () => {
     );
   });
 
-  it("clears state files before planning", async () => {
-    await runYolo("my goal", agentConfig, defaultOptions);
-    expect(mocks.clearStateFiles).toHaveBeenCalled();
-  });
-
-  it("runs plan agent with goal", async () => {
+  it("calls runPlan with goal and noRefine true", async () => {
     await runYolo("implement auth", agentConfig, defaultOptions);
-    expect(mocks.buildPlanPrompt).toHaveBeenCalledWith("implement auth");
-    expect(mocks.runAgent).toHaveBeenCalledWith(
-      "plan prompt",
+    expect(mocks.runPlan).toHaveBeenCalledWith(
+      "implement auth",
       agentConfig,
-      expect.objectContaining({ force: true }),
-      "planning",
-      expect.any(Number),
+      expect.objectContaining({ force: true, noRefine: true }),
+      undefined,
     );
   });
 
-  it("returns plan_failed when plan agent fails to create plan", async () => {
-    mocks.hasContent.mockResolvedValue(false);
+  it("returns plan_failed when runPlan returns failed", async () => {
+    mocks.runPlan.mockResolvedValue({ status: "failed", taskCount: 0 });
 
     const result = await runYolo("goal", agentConfig, defaultOptions);
     expect(result).toEqual({ status: "plan_failed" });
-    expect(mocks.printError).toHaveBeenCalledWith("agent did not create a plan");
     expect(mocks.runRefine).not.toHaveBeenCalled();
     expect(mocks.runBuild).not.toHaveBeenCalled();
   });
 
-  it("returns plan_failed when plan agent exits with non-zero code", async () => {
-    mocks.runAgent.mockResolvedValue({ output: "", exitCode: 1 });
+  it("returns plan_failed when runPlan returns cancelled", async () => {
+    mocks.runPlan.mockResolvedValue({ status: "cancelled", taskCount: 0 });
 
     const result = await runYolo("goal", agentConfig, defaultOptions);
     expect(result).toEqual({ status: "plan_failed" });
-    expect(mocks.printError).toHaveBeenCalledWith("agent did not create a plan");
     expect(mocks.runRefine).not.toHaveBeenCalled();
     expect(mocks.runBuild).not.toHaveBeenCalled();
   });
@@ -216,9 +182,15 @@ describe("runYolo", () => {
     expect(mocks.printKv).toHaveBeenCalledWith("path", "../repo-ralph-120000");
   });
 
-  it("passes worktreeInfo to runRefine and runBuild", async () => {
+  it("passes worktreeInfo to runPlan, runRefine, and runBuild", async () => {
     const worktreeInfo = { branch: "ralph/yolo-20260224", name: "repo-ralph-120000", dir: "/tmp/repo-ralph-120000" };
     await runYolo("goal", agentConfig, defaultOptions, worktreeInfo);
+    expect(mocks.runPlan).toHaveBeenCalledWith(
+      "goal",
+      agentConfig,
+      expect.objectContaining({ force: true }),
+      worktreeInfo,
+    );
     expect(mocks.runRefine).toHaveBeenCalledWith(
       10,
       agentConfig,
@@ -247,14 +219,27 @@ describe("runYolo", () => {
     expect(result).toEqual({ status: "build_failed" });
   });
 
-  it("executes phases in order: clear → plan → refine → build", async () => {
+  it("executes phases in order: plan → refine → build", async () => {
     const callOrder: string[] = [];
-    mocks.clearStateFiles.mockImplementation(async () => { callOrder.push("clear"); });
-    mocks.runAgent.mockImplementation(async () => { callOrder.push("plan"); return { output: "", exitCode: 0 }; });
+    mocks.runPlan.mockImplementation(async () => { callOrder.push("plan"); return { status: "created", taskCount: 3 }; });
     mocks.runRefine.mockImplementation(async () => { callOrder.push("refine"); });
     mocks.runBuild.mockImplementation(async () => { callOrder.push("build"); return { status: "completed", iterations: 1 }; });
 
     await runYolo("goal", agentConfig, defaultOptions);
-    expect(callOrder).toEqual(["clear", "plan", "refine", "build"]);
+    expect(callOrder).toEqual(["plan", "refine", "build"]);
+  });
+
+  it("displays task count from plan result", async () => {
+    mocks.runPlan.mockResolvedValue({ status: "created", taskCount: 7 });
+
+    await runYolo("goal", agentConfig, defaultOptions);
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("7 tasks"));
+  });
+
+  it("uses singular 'task' when count is 1", async () => {
+    mocks.runPlan.mockResolvedValue({ status: "created", taskCount: 1 });
+
+    await runYolo("goal", agentConfig, defaultOptions);
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("1 task"));
   });
 });

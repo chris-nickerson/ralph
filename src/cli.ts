@@ -86,8 +86,9 @@ program
       ? await setupWorktree("plan")
       : undefined;
     const { runPlan } = await import("./commands/plan.js");
-    await runPlan(goal, config, options, wt);
+    const result = await runPlan(goal, config, options, wt);
     worktreeDone = true;
+    if (result.status === "failed") process.exit(1);
   });
 
 program
@@ -143,7 +144,8 @@ program
       [target].filter(Boolean) as string[],
       { staged: cmdOpts.staged ?? false },
     );
-    await runReview(config, options, reviewTarget);
+    const result = await runReview(config, options, reviewTarget);
+    if (result.status !== "completed") process.exit(1);
   });
 
 program
@@ -154,7 +156,8 @@ program
     const config = validateAgent(options.agent);
     checkAgentInstalled(config);
     const { runFix } = await import("./commands/fix.js");
-    await runFix(instructions, config, options);
+    const result = await runFix(instructions, config, options);
+    if (result.status !== "completed") process.exit(1);
   });
 
 program
@@ -176,7 +179,8 @@ program
   .description("Update to latest version")
   .action(async () => {
     const { runUpdate } = await import("./commands/update.js");
-    await runUpdate();
+    const result = await runUpdate();
+    process.exit(result.exitCode);
   });
 
 program

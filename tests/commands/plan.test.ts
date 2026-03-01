@@ -68,13 +68,8 @@ const defaultOptions: RalphOptions = {
 const agentConfig = { name: "claude", command: "claude", args: ["-p"] };
 
 describe("runPlan", () => {
-  let exitSpy: ReturnType<typeof vi.spyOn>;
-
   beforeEach(() => {
     vi.clearAllMocks();
-    exitSpy = vi.spyOn(process, "exit").mockImplementation((() => {
-      throw new Error("EXIT");
-    }) as never);
 
     mocks.runAgent.mockResolvedValue({ output: "done", exitCode: 0 });
     let planCheckCount = 0;
@@ -107,14 +102,14 @@ describe("runPlan", () => {
     expect(mocks.clearStateFiles).toHaveBeenCalled();
   });
 
-  it("exits when user declines overwrite", async () => {
+  it("returns cancelled when user declines overwrite", async () => {
     mocks.hasContent.mockImplementation(async (p: string) =>
       p === "IMPLEMENTATION_PLAN.md" ? true : false,
     );
     mocks.confirm.mockResolvedValue(false);
 
-    await expect(runPlan("goal", agentConfig, defaultOptions)).rejects.toThrow("EXIT");
-    expect(exitSpy).toHaveBeenCalledWith(0);
+    const result = await runPlan("goal", agentConfig, defaultOptions);
+    expect(result).toEqual({ status: "cancelled", taskCount: 0 });
     expect(mocks.clearStateFiles).not.toHaveBeenCalled();
   });
 
@@ -170,8 +165,9 @@ describe("runPlan", () => {
     mocks.countTasks.mockResolvedValue(5);
 
     const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    await runPlan("goal", agentConfig, defaultOptions);
+    const result = await runPlan("goal", agentConfig, defaultOptions);
 
+    expect(result).toEqual({ status: "created", taskCount: 5 });
     expect(mocks.countTasks).toHaveBeenCalled();
     expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("5 tasks"));
     consoleSpy.mockRestore();
@@ -196,12 +192,12 @@ describe("runPlan", () => {
     expect(mocks.printWorktreeNext).toHaveBeenCalledWith("build", worktreeInfo, "ralph", "plan");
   });
 
-  it("exits with code 1 when no plan is created", async () => {
+  it("returns failed when no plan is created", async () => {
     mocks.hasContent.mockResolvedValue(false);
     mocks.runAgent.mockResolvedValue({ output: "", exitCode: 1 });
 
-    await expect(runPlan("goal", agentConfig, defaultOptions)).rejects.toThrow("EXIT");
-    expect(exitSpy).toHaveBeenCalledWith(1);
+    const result = await runPlan("goal", agentConfig, defaultOptions);
+    expect(result).toEqual({ status: "failed", taskCount: 0 });
     expect(mocks.countTasks).not.toHaveBeenCalled();
   });
 

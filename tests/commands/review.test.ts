@@ -99,15 +99,11 @@ function setupDefaults() {
 }
 
 describe("runReview", () => {
-  let exitSpy: ReturnType<typeof vi.spyOn>;
   let consoleSpy: ReturnType<typeof vi.spyOn>;
   let stdoutSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    exitSpy = vi.spyOn(process, "exit").mockImplementation((() => {
-      throw new Error("EXIT");
-    }) as never);
     consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
     setupDefaults();
@@ -118,11 +114,11 @@ describe("runReview", () => {
     stdoutSpy.mockRestore();
   });
 
-  it("exits when diff is empty", async () => {
+  it("returns empty_diff when diff is empty", async () => {
     mocks.isDiffEmpty.mockResolvedValue(true);
 
-    await expect(runReview(agentConfig, defaultOptions)).rejects.toThrow("EXIT");
-    expect(exitSpy).toHaveBeenCalledWith(1);
+    const result = await runReview(agentConfig, defaultOptions);
+    expect(result).toEqual({ status: "empty_diff" });
     expect(mocks.printError).toHaveBeenCalledWith("no changes to review");
   });
 
@@ -131,9 +127,10 @@ describe("runReview", () => {
     expect(mocks.resolveReviewTarget).toHaveBeenCalledWith({ type: "staged" });
   });
 
-  it("runs all 3 phases in order", async () => {
-    await runReview(agentConfig, defaultOptions);
+  it("runs all 3 phases in order and returns completed", async () => {
+    const result = await runReview(agentConfig, defaultOptions);
 
+    expect(result).toEqual({ status: "completed" });
     expect(mocks.printStep).toHaveBeenCalledWith(1, "specialists", "4 parallel reviews");
     expect(mocks.runAgentsParallel).toHaveBeenCalledTimes(1);
 
@@ -168,7 +165,7 @@ describe("runReview", () => {
     expect(verifyCall[5]).toBeUndefined();
   });
 
-  it("exits with error when all specialists fail", async () => {
+  it("returns all_failed when all specialists fail", async () => {
     mocks.runAgentsParallel.mockResolvedValue([
       { output: "", exitCode: 1, label: "Correctness" },
       { output: "", exitCode: 1, label: "Code Quality" },
@@ -176,8 +173,8 @@ describe("runReview", () => {
       { output: "", exitCode: 1, label: "Security & Perf" },
     ]);
 
-    await expect(runReview(agentConfig, defaultOptions)).rejects.toThrow("EXIT");
-    expect(exitSpy).toHaveBeenCalledWith(1);
+    const result = await runReview(agentConfig, defaultOptions);
+    expect(result).toEqual({ status: "all_failed" });
     expect(mocks.printError).toHaveBeenCalledWith("all reviewers failed");
     expect(mocks.saveReview).not.toHaveBeenCalled();
   });

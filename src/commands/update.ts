@@ -3,13 +3,18 @@ import { spawn } from "node:child_process";
 const INSTALL_URL =
   "https://raw.githubusercontent.com/chris-nickerson/ralph/main/install.sh";
 
-export async function runUpdate(): Promise<void> {
+export interface UpdateResult {
+  status: "completed" | "download_failed" | "install_failed";
+  exitCode: number;
+}
+
+export async function runUpdate(): Promise<UpdateResult> {
   const res = await fetch(INSTALL_URL, {
     signal: AbortSignal.timeout(30_000),
   });
   if (!res.ok) {
     process.stderr.write("Update failed: could not download installer\n");
-    process.exit(1);
+    return { status: "download_failed", exitCode: 1 };
   }
   const script = await res.text();
 
@@ -20,5 +25,8 @@ export async function runUpdate(): Promise<void> {
     child.on("error", () => resolve(1));
   });
 
-  process.exit(exitCode);
+  return {
+    status: exitCode === 0 ? "completed" : "install_failed",
+    exitCode,
+  };
 }

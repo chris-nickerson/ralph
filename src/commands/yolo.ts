@@ -1,8 +1,6 @@
-import { runAgent } from "../agent.js";
 import type { AgentConfig, RalphOptions } from "../agent.js";
 import type { WorktreeInfo } from "../git.js";
-import { buildPlanPrompt } from "../prompt.js";
-import { clearStateFiles, hasContent, countTasks } from "../state.js";
+import { runPlan } from "./plan.js";
 import { runRefine, DEFAULT_REFINE_ITERATIONS } from "./refine.js";
 import { runBuild, isSuccessStatus } from "./build.js";
 import type { BuildResult } from "./build.js";
@@ -10,7 +8,6 @@ import {
   dim,
   printHeader,
   printKv,
-  printError,
 } from "../ui.js";
 
 export interface YoloResult {
@@ -23,7 +20,8 @@ export async function runYolo(
   options: RalphOptions,
   worktreeInfo?: WorktreeInfo,
 ): Promise<YoloResult> {
-  options = { ...options, force: true };
+  const skipRefine = options.noRefine;
+  options = { ...options, force: true, noRefine: true };
 
   const goalDisplay = goal.length > 50 ? goal.slice(0, 50) + "..." : goal;
 
@@ -36,33 +34,23 @@ export async function runYolo(
     printKv("path", `../${worktreeInfo.name}`);
   }
 
-  const phases = options.noRefine
+  const phases = skipRefine
     ? "plan → build → review"
     : "plan → refine → build → review";
   printKv("phases", phases);
 
-  // Plan phase
-  await clearStateFiles();
-
-  const startTime = Date.now();
-  const prompt = await buildPlanPrompt(goal);
-  const { exitCode } = await runAgent(prompt, config, options, "planning", startTime);
-
-  if (exitCode !== 0 || !(await hasContent("IMPLEMENTATION_PLAN.md"))) {
-    printError("agent did not create a plan");
+  const planResult = await runPlan(goal, config, options, worktreeInfo);
+  if (planResult.status !== "created") {
     return { status: "plan_failed" };
   }
 
-  const taskCount = await countTasks();
-  const taskWord = taskCount === 1 ? "task" : "tasks";
-  console.log(`  ${dim(`plan created: ${taskCount} ${taskWord}`)}`);
+  const taskWord = planResult.taskCount === 1 ? "task" : "tasks";
+  console.log(`  ${dim(`plan created: ${planResult.taskCount} ${taskWord}`)}`);
 
-  // Refine phase
-  if (!options.noRefine) {
+  if (!skipRefine) {
     await runRefine(DEFAULT_REFINE_ITERATIONS, config, options, worktreeInfo);
   }
 
-  // Build phase
   const result: BuildResult = await runBuild(10, config, options, worktreeInfo);
 
   if (!isSuccessStatus(result.status)) {

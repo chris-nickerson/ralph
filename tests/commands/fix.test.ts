@@ -46,14 +46,10 @@ const defaultOptions: RalphOptions = {
 const agentConfig = { name: "claude", command: "claude", args: ["-p"] };
 
 describe("runFix", () => {
-  let exitSpy: ReturnType<typeof vi.spyOn>;
   let consoleSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    exitSpy = vi.spyOn(process, "exit").mockImplementation((() => {
-      throw new Error("EXIT");
-    }) as never);
     consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
     mocks.loadReview.mockResolvedValue("## Review findings\n\nSome issue here");
@@ -65,17 +61,18 @@ describe("runFix", () => {
     consoleSpy.mockRestore();
   });
 
-  it("exits with error when no review found", async () => {
+  it("returns no_review when no review found", async () => {
     mocks.loadReview.mockRejectedValue(new Error("no review found; run ralph review first"));
 
-    await expect(runFix(undefined, agentConfig, defaultOptions)).rejects.toThrow("EXIT");
-    expect(exitSpy).toHaveBeenCalledWith(1);
+    const result = await runFix(undefined, agentConfig, defaultOptions);
+    expect(result).toEqual({ status: "no_review" });
     expect(mocks.printError).toHaveBeenCalledWith("no review found; run ralph review first");
   });
 
-  it("runs agent once with fix prompt", async () => {
-    await runFix(undefined, agentConfig, defaultOptions);
+  it("runs agent once with fix prompt and returns completed", async () => {
+    const result = await runFix(undefined, agentConfig, defaultOptions);
 
+    expect(result).toEqual({ status: "completed" });
     expect(mocks.runAgent).toHaveBeenCalledTimes(1);
     expect(mocks.runAgent).toHaveBeenCalledWith(
       "fix prompt content",

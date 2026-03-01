@@ -51,8 +51,10 @@ export function killAgent(): void {
 }
 
 function escalateToSigkill(child: ChildProcess): void {
+  let exited = false;
+  child.once("exit", () => { exited = true; });
   const timer = setTimeout(() => {
-    if (!child.killed) child.kill("SIGKILL");
+    if (!exited) child.kill("SIGKILL");
   }, SIGKILL_DELAY_MS);
   timer.unref();
 }
