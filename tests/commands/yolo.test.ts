@@ -23,10 +23,13 @@ vi.mock("../../src/commands/refine.js", () => ({
   DEFAULT_REFINE_ITERATIONS: 10,
 }));
 
-vi.mock("../../src/commands/build.js", () => ({
-  runBuild: mocks.runBuild,
-  isSuccessStatus: (s: string) => s === "completed" || s === "limit_reached" || s === "no_tasks",
-}));
+vi.mock("../../src/commands/build.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../src/commands/build.js")>();
+  return {
+    ...actual,
+    runBuild: mocks.runBuild,
+  };
+});
 
 vi.mock("../../src/state.js", () => ({
   clearStateFiles: mocks.clearStateFiles,

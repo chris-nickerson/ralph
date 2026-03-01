@@ -40,11 +40,21 @@ export interface RalphOptions {
 
 const activeChildren: ChildProcess[] = [];
 
+const SIGKILL_DELAY_MS = 5_000;
+
 export function killAgent(): void {
   for (const child of activeChildren) {
     child.kill();
+    escalateToSigkill(child);
   }
   activeChildren.length = 0;
+}
+
+function escalateToSigkill(child: ChildProcess): void {
+  const timer = setTimeout(() => {
+    if (!child.killed) child.kill("SIGKILL");
+  }, SIGKILL_DELAY_MS);
+  timer.unref();
 }
 
 export function validateAgent(name: string): AgentConfig {
@@ -108,6 +118,7 @@ function spawnAgent(
         ? setTimeout(() => {
             timedOut = true;
             child.kill();
+            escalateToSigkill(child);
           }, timeout * 1000)
         : undefined;
 

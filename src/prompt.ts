@@ -58,6 +58,8 @@ export async function buildBuildPrompt(
 
   if (noReview) {
     prompt += noCommit ? NO_REVIEW_NO_COMMIT_OVERRIDE : NO_REVIEW_COMMIT_OVERRIDE;
+  } else if (noCommit) {
+    prompt += NO_COMMIT_OVERRIDE;
   }
 
   return prompt;

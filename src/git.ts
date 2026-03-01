@@ -259,8 +259,9 @@ export async function isDiffEmpty(range: string): Promise<boolean> {
   try {
     await git("diff", "--quiet", ...range.split(" "));
     return true;
-  } catch (err: any) {
-    if (err.code === 1) return false;
+  } catch (err: unknown) {
+    const code = err instanceof Error && "code" in err ? (err as { code: unknown }).code : undefined;
+    if (code === 1) return false;
     throw err;
   }
 }

@@ -67,7 +67,7 @@ vi.mock("../../src/ui.js", () => ({
   printWarning: mocks.printWarning,
 }));
 
-import { runBuild } from "../../src/commands/build.js";
+import { runBuild, isSuccessStatus } from "../../src/commands/build.js";
 
 const defaultOptions: RalphOptions = {
   agent: "claude",
@@ -469,5 +469,31 @@ describe("runBuild", () => {
 
     expect(mocks.runAgent).toHaveBeenCalledTimes(3);
     expect(mocks.printError).toHaveBeenCalledWith("agent failed 3 times consecutively; stopping");
+  });
+});
+
+describe("isSuccessStatus", () => {
+  it("returns true for completed", () => {
+    expect(isSuccessStatus("completed")).toBe(true);
+  });
+
+  it("returns true for limit_reached", () => {
+    expect(isSuccessStatus("limit_reached")).toBe(true);
+  });
+
+  it("returns true for no_tasks", () => {
+    expect(isSuccessStatus("no_tasks")).toBe(true);
+  });
+
+  it("returns false for no_plan", () => {
+    expect(isSuccessStatus("no_plan")).toBe(false);
+  });
+
+  it("returns false for no_head", () => {
+    expect(isSuccessStatus("no_head")).toBe(false);
+  });
+
+  it("returns false for agent_failed", () => {
+    expect(isSuccessStatus("agent_failed")).toBe(false);
   });
 });

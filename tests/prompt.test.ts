@@ -96,9 +96,11 @@ describe("buildBuildPrompt", () => {
     expect(prompt).toContain("Do NOT add co-author lines");
   });
 
-  it("does not append override when review enabled even with no-commit", async () => {
+  it("appends no-commit override when review enabled and no-commit", async () => {
     const prompt = await buildBuildPrompt(false, true);
-    expect(prompt).not.toContain("Override");
+    expect(prompt).toContain("## Override: No Commits");
+    expect(prompt).toContain("Skip the Commit section above entirely");
+    expect(prompt).not.toContain("There is no review step");
   });
 });
 

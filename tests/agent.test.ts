@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { EventEmitter } from "node:events";
 
-import { AGENTS, validateAgent } from "../src/agent.js";
-import type { RalphOptions } from "../src/agent.js";
+import { AGENTS, validateAgent, checkAgentInstalled } from "../src/agent.js";
+import type { RalphOptions, AgentConfig } from "../src/agent.js";
 
 describe("AGENTS map", () => {
   it("has claude with correct config", () => {
@@ -49,6 +49,17 @@ describe("validateAgent", () => {
     expect(() => validateAgent("bad")).toThrow(
       "Supported agents: claude, codex, cursor",
     );
+  });
+});
+
+describe("checkAgentInstalled", () => {
+  it("does not throw when command exists in PATH", () => {
+    expect(() => checkAgentInstalled({ name: "node", command: "node", args: [] })).not.toThrow();
+  });
+
+  it("throws when command is not found in PATH", () => {
+    const fake: AgentConfig = { name: "fake", command: "ralph-nonexistent-binary-xyz", args: [] };
+    expect(() => checkAgentInstalled(fake)).toThrow("'ralph-nonexistent-binary-xyz' CLI not found in PATH");
   });
 });
 
