@@ -39,7 +39,7 @@ export async function runFix(
 
   const startTime = Date.now();
 
-  await runAgent(prompt, config, options, "fixing", startTime);
+  await runAgent(prompt, config, options, "fixing");
 
   const elapsed = Math.floor((Date.now() - startTime) / 1000);
   console.log("");

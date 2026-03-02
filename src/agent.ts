@@ -82,13 +82,12 @@ export async function runAgent(
   config: AgentConfig,
   options: RalphOptions,
   activity: string,
-  startTime: number,
   silent?: boolean,
 ): Promise<{ output: string; exitCode: number }> {
   if (options.debug) {
     return runDebug(prompt, config, options.timeout);
   }
-  return runWithSpinner(prompt, config, activity, startTime, options.timeout, silent);
+  return runWithSpinner(prompt, config, activity, options.timeout, silent);
 }
 
 interface SpawnResult {
@@ -190,10 +189,10 @@ async function runWithSpinner(
   prompt: string,
   config: AgentConfig,
   activity: string,
-  startTime: number,
   timeout: number,
   silent?: boolean,
 ): Promise<{ output: string; exitCode: number }> {
+  const startTime = Date.now();
   const spinner = ora({
     spinner: isUtf8 ? "dots" : { frames: ["-", "\\", "|", "/"] },
     prefixText: " ",
@@ -239,7 +238,6 @@ export async function runAgentsParallel(
   tasks: Array<{ prompt: string; label: string }>,
   config: AgentConfig,
   options: RalphOptions,
-  startTime: number,
   colors?: Array<(s: string) => string>,
 ): Promise<Array<{ output: string; exitCode: number; label: string }>> {
   if (options.debug) {
@@ -252,6 +250,7 @@ export async function runAgentsParallel(
     return results;
   }
 
+  const startTime = Date.now();
   const spinner = new MultiSpinner({
     labels: tasks.map((t) => t.label),
     startTime,

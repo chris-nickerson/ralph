@@ -149,7 +149,6 @@ describe("runPlan", () => {
       agentConfig,
       defaultOptions,
       "planning",
-      expect.any(Number),
     );
   });
 

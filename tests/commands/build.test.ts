@@ -200,7 +200,6 @@ describe("runBuild", () => {
       expect.objectContaining({ diffCmd: "git diff abc123..HEAD" }),
       agentConfig,
       defaultOptions,
-      expect.any(Number),
     );
     expect(mocks.saveReview).toHaveBeenCalledWith("review output");
     expect(mocks.printComplete).toHaveBeenCalled();
@@ -251,7 +250,7 @@ describe("runBuild", () => {
     expect(result).toEqual({ status: "completed", iterations: 1 });
 
     expect(mocks.buildFixPrompt).toHaveBeenCalledWith("NEEDS REVISION found", undefined, false);
-    expect(mocks.runAgent).toHaveBeenCalledWith("fix prompt", agentConfig, defaultOptions, "fixing", expect.any(Number));
+    expect(mocks.runAgent).toHaveBeenCalledWith("fix prompt", agentConfig, defaultOptions, "fixing");
     expect(mocks.printPhase).toHaveBeenCalledWith(1, "fix");
   });
 
@@ -307,7 +306,6 @@ describe("runBuild", () => {
       }),
       agentConfig,
       opts,
-      expect.any(Number),
     );
   });
 

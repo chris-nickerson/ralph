@@ -46,7 +46,6 @@ export async function runReviewPipeline(
   context: CodeReviewContext,
   config: AgentConfig,
   options: RalphOptions,
-  startTime: number,
 ): Promise<ReviewPipelineResult> {
   // Phase 1: Specialists
   printStep(1, "specialists", "4 parallel reviews");
@@ -60,7 +59,7 @@ export async function runReviewPipeline(
     label: SPECIALIST_LABELS[i],
   }));
 
-  const results = await runAgentsParallel(tasks, config, options, startTime, SPECIALIST_COLORS);
+  const results = await runAgentsParallel(tasks, config, options, SPECIALIST_COLORS);
 
   const successful = results.filter((r) => r.exitCode === 0 && r.output);
   const failed = results.filter((r) => r.exitCode !== 0 || !r.output);
@@ -82,7 +81,7 @@ export async function runReviewPipeline(
   }));
 
   const synthPrompt = await buildSynthesisPrompt(specialistOutputs, context);
-  const synthResult = await runAgent(synthPrompt, config, options, "synthesizing", startTime, true);
+  const synthResult = await runAgent(synthPrompt, config, options, "synthesizing", true);
 
   if (synthResult.exitCode !== 0 || !synthResult.output) {
     printWarning("synthesis failed, showing specialist outputs");
@@ -100,7 +99,7 @@ export async function runReviewPipeline(
   printStep(3, "verification");
 
   const verifyPrompt = await buildVerificationPrompt(synthesizedReview, context);
-  const verifyResult = await runAgent(verifyPrompt, config, options, "verifying", startTime);
+  const verifyResult = await runAgent(verifyPrompt, config, options, "verifying");
 
   if (verifyResult.exitCode !== 0 || !verifyResult.output) {
     printWarning("verification failed, showing synthesized review");
@@ -159,7 +158,7 @@ export async function runReview(
 
   const startTime = Date.now();
 
-  const { reviewContent, fallback } = await runReviewPipeline(context, config, options, startTime);
+  const { reviewContent, fallback } = await runReviewPipeline(context, config, options);
 
   if (reviewContent === undefined) {
     printError("all reviewers failed");

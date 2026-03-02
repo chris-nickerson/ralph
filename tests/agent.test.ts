@@ -124,7 +124,6 @@ describe("runAgent", () => {
       AGENTS.claude,
       makeOptions(),
       "building",
-      Date.now(),
     );
 
     mockChild.stdout.emit("data", Buffer.from("output text"));
@@ -165,7 +164,6 @@ describe("runAgent", () => {
       AGENTS.codex,
       makeOptions(),
       "building",
-      Date.now(),
     );
 
     mockChild.stdout.emit("data", Buffer.from("some output"));
@@ -200,7 +198,6 @@ describe("runAgent", () => {
       AGENTS.claude,
       makeOptions({ debug: true }),
       "planning",
-      Date.now(),
     );
 
     mockChild.stdout.emit("data", Buffer.from("debug output"));
@@ -235,7 +232,6 @@ describe("runAgent", () => {
       AGENTS.claude,
       makeOptions(),
       "building",
-      Date.now(),
     );
 
     mockChild.emit("error", new Error("spawn ENOENT"));
@@ -271,7 +267,6 @@ describe("runAgent", () => {
       AGENTS.claude,
       makeOptions({ timeout: 2 }),
       "building",
-      Date.now(),
     );
 
     await vi.advanceTimersByTimeAsync(2000);
@@ -312,7 +307,6 @@ describe("runAgent", () => {
       AGENTS.claude,
       makeOptions(),
       "building",
-      Date.now(),
       true,
     );
 
@@ -382,8 +376,8 @@ describe("killAgent", () => {
       noRefine: false, noReview: false, worktree: false, timeout: 0,
     } as RalphOptions;
 
-    const p1 = runAgent("prompt1", AGENTS.claude, opts, "building", Date.now());
-    const p2 = runAgent("prompt2", AGENTS.claude, opts, "building", Date.now());
+    const p1 = runAgent("prompt1", AGENTS.claude, opts, "building");
+    const p2 = runAgent("prompt2", AGENTS.claude, opts, "building");
 
     killAgent();
 
@@ -476,7 +470,6 @@ describe("runAgentsParallel", () => {
       tasks,
       AGENTS.claude,
       makeOptions(),
-      Date.now(),
     );
 
     await vi.waitFor(() => {
@@ -548,7 +541,7 @@ describe("runAgentsParallel", () => {
     ];
 
     const resultPromise = runAgentsParallel(
-      tasks, AGENTS.claude, makeOptions(), Date.now(),
+      tasks, AGENTS.claude, makeOptions(),
     );
 
     await vi.waitFor(() => {
@@ -608,7 +601,7 @@ describe("runAgentsParallel", () => {
     ];
 
     const resultPromise = runAgentsParallel(
-      tasks, AGENTS.claude, makeOptions(), Date.now(),
+      tasks, AGENTS.claude, makeOptions(),
     );
 
     await vi.waitFor(() => {
@@ -666,7 +659,7 @@ describe("runAgentsParallel", () => {
     ];
 
     const resultPromise = runAgentsParallel(
-      tasks, AGENTS.claude, makeOptions({ debug: true }), Date.now(),
+      tasks, AGENTS.claude, makeOptions({ debug: true }),
     );
 
     await vi.waitFor(() => {

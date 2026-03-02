@@ -154,7 +154,7 @@ describe("runReview", () => {
 
     const synthCall = mocks.runAgent.mock.calls[0];
     expect(synthCall[0]).toBe("synthesis prompt");
-    expect(synthCall[5]).toBe(true);
+    expect(synthCall[4]).toBe(true);
   });
 
   it("does not pass silent for verification agent", async () => {
@@ -162,7 +162,7 @@ describe("runReview", () => {
 
     const verifyCall = mocks.runAgent.mock.calls[1];
     expect(verifyCall[0]).toBe("verification prompt");
-    expect(verifyCall[5]).toBeUndefined();
+    expect(verifyCall[4]).toBeUndefined();
   });
 
   it("returns all_failed when all specialists fail", async () => {
@@ -320,7 +320,7 @@ describe("runReviewPipeline", () => {
   });
 
   it("returns combined review content on full success", async () => {
-    const result = await runReviewPipeline(mockContext, agentConfig, defaultOptions, Date.now());
+    const result = await runReviewPipeline(mockContext, agentConfig, defaultOptions);
 
     expect(result.reviewContent).toBe("synthesized review\nfinal report\n<signal>APPROVED</signal>");
     expect(result.fallback).toBe(false);
@@ -334,7 +334,7 @@ describe("runReviewPipeline", () => {
       { output: "", exitCode: 1, label: "Security & Perf" },
     ]);
 
-    const result = await runReviewPipeline(mockContext, agentConfig, defaultOptions, Date.now());
+    const result = await runReviewPipeline(mockContext, agentConfig, defaultOptions);
 
     expect(result.reviewContent).toBeUndefined();
     expect(result.needsRevision).toBe(false);
@@ -345,7 +345,7 @@ describe("runReviewPipeline", () => {
     mocks.runAgent.mockReset();
     mocks.runAgent.mockResolvedValueOnce({ output: "", exitCode: 1 });
 
-    const result = await runReviewPipeline(mockContext, agentConfig, defaultOptions, Date.now());
+    const result = await runReviewPipeline(mockContext, agentConfig, defaultOptions);
 
     const expected =
       "\n--- Correctness ---\nreview 1" +
@@ -362,7 +362,7 @@ describe("runReviewPipeline", () => {
       .mockResolvedValueOnce({ output: "synthesized review", exitCode: 0 })
       .mockResolvedValueOnce({ output: "", exitCode: 1 });
 
-    const result = await runReviewPipeline(mockContext, agentConfig, defaultOptions, Date.now());
+    const result = await runReviewPipeline(mockContext, agentConfig, defaultOptions);
 
     expect(result.reviewContent).toBe("synthesized review");
     expect(result.fallback).toBe(true);
@@ -374,7 +374,7 @@ describe("runReviewPipeline", () => {
       .mockResolvedValueOnce({ output: "synthesized review", exitCode: 0 })
       .mockResolvedValueOnce({ output: "Verdict: NEEDS REVISION\n<signal>NEEDS_REVISION</signal>", exitCode: 0 });
 
-    const result = await runReviewPipeline(mockContext, agentConfig, defaultOptions, Date.now());
+    const result = await runReviewPipeline(mockContext, agentConfig, defaultOptions);
 
     expect(result.needsRevision).toBe(true);
   });
@@ -385,7 +385,7 @@ describe("runReviewPipeline", () => {
       .mockResolvedValueOnce({ output: "synthesized review", exitCode: 0 })
       .mockResolvedValueOnce({ output: "final report", exitCode: 0 });
 
-    const result = await runReviewPipeline(mockContext, agentConfig, defaultOptions, Date.now());
+    const result = await runReviewPipeline(mockContext, agentConfig, defaultOptions);
 
     expect(result.needsRevision).toBe(false);
     expect(mocks.printWarning).toHaveBeenCalledWith("no signal in verification output");
@@ -397,7 +397,7 @@ describe("runReviewPipeline", () => {
       .mockResolvedValueOnce({ output: "Final Verdict: NEEDS REVISION\n<signal>NEEDS_REVISION</signal>", exitCode: 0 })
       .mockResolvedValueOnce({ output: "Verification: APPROVED — all findings addressed.\n<signal>APPROVED</signal>", exitCode: 0 });
 
-    const result = await runReviewPipeline(mockContext, agentConfig, defaultOptions, Date.now());
+    const result = await runReviewPipeline(mockContext, agentConfig, defaultOptions);
 
     expect(result.needsRevision).toBe(false);
   });
@@ -413,7 +413,7 @@ describe("runReviewPipeline", () => {
       { output: "ok", exitCode: 0, label: "Security & Perf" },
     ]);
 
-    const result = await runReviewPipeline(mockContext, agentConfig, defaultOptions, Date.now());
+    const result = await runReviewPipeline(mockContext, agentConfig, defaultOptions);
 
     expect(result.needsRevision).toBe(true);
     expect(result.fallback).toBe(true);
@@ -425,7 +425,7 @@ describe("runReviewPipeline", () => {
       .mockResolvedValueOnce({ output: "problems found\n<signal>NEEDS_REVISION</signal>", exitCode: 0 })
       .mockResolvedValueOnce({ output: "", exitCode: 1 });
 
-    const result = await runReviewPipeline(mockContext, agentConfig, defaultOptions, Date.now());
+    const result = await runReviewPipeline(mockContext, agentConfig, defaultOptions);
 
     expect(result.needsRevision).toBe(true);
     expect(result.fallback).toBe(true);
@@ -437,7 +437,7 @@ describe("runReviewPipeline", () => {
       .mockResolvedValueOnce({ output: "synthesized review", exitCode: 0 })
       .mockResolvedValueOnce({ output: "The original verdict was NEEDS REVISION but all issues resolved.\n<signal>APPROVED</signal>", exitCode: 0 });
 
-    const result = await runReviewPipeline(mockContext, agentConfig, defaultOptions, Date.now());
+    const result = await runReviewPipeline(mockContext, agentConfig, defaultOptions);
 
     expect(result.needsRevision).toBe(false);
   });

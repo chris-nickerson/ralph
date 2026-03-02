@@ -79,7 +79,6 @@ describe("runFix", () => {
       agentConfig,
       defaultOptions,
       "fixing",
-      expect.any(Number),
     );
   });
 

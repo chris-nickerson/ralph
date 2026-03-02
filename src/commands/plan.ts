@@ -73,7 +73,7 @@ export async function runPlan(
   const startTime = Date.now();
   const prompt = await buildPlanPrompt(goal);
 
-  await runAgent(prompt, config, options, "planning", startTime);
+  await runAgent(prompt, config, options, "planning");
 
   const elapsed = Math.floor((Date.now() - startTime) / 1000);
 

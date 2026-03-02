@@ -85,7 +85,6 @@ export async function runRefine(
       config,
       options,
       phase,
-      startTime,
     );
 
     const iterElapsed = Math.floor((Date.now() - iterStart) / 1000);
