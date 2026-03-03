@@ -9,7 +9,7 @@ vi.mock("node:readline", () => ({
   createInterface: mockReadline.createInterface,
 }));
 
-import { formatDuration, line, confirm, MultiSpinner, isUtf8, SPINNER_INTERVAL_MS } from "../src/ui.js";
+import { formatDuration, line, confirm, MultiSpinner, isUtf8, SPINNER_INTERVAL_MS, printPhase, printStep, printLimitReached, printTimingSummary } from "../src/ui.js";
 
 describe("line", () => {
   it("returns 74 dashes", () => {
@@ -50,6 +50,145 @@ describe("formatDuration", () => {
 
   it("formats large durations", () => {
     expect(formatDuration(7200)).toBe("2h 0m");
+  });
+});
+
+describe("printPhase", () => {
+  let consoleSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    consoleSpy.mockRestore();
+  });
+
+  it("prints without elapsed", () => {
+    printPhase(1, "build");
+    const output = consoleSpy.mock.calls.map((c) => String(c[0])).join("\n");
+    expect(output).toContain("iteration 1");
+    expect(output).toContain("build");
+  });
+
+  it("prints with detail but no elapsed", () => {
+    printPhase(2, "build", "3 tasks remaining");
+    const output = consoleSpy.mock.calls.map((c) => String(c[0])).join("\n");
+    expect(output).toContain("iteration 2");
+    expect(output).toContain("build");
+    expect(output).toContain("3 tasks remaining");
+  });
+
+  it("prints with elapsed but no detail", () => {
+    printPhase(1, "review", undefined, "1m 30s");
+    const output = consoleSpy.mock.calls.map((c) => String(c[0])).join("\n");
+    expect(output).toContain("iteration 1");
+    expect(output).toContain("review");
+    expect(output).toContain("1m 30s");
+  });
+
+  it("prints with both detail and elapsed", () => {
+    printPhase(2, "build", "2 tasks remaining", "45s");
+    const output = consoleSpy.mock.calls.map((c) => String(c[0])).join("\n");
+    expect(output).toContain("iteration 2");
+    expect(output).toContain("build");
+    expect(output).toContain("2 tasks remaining");
+    expect(output).toContain("45s");
+  });
+});
+
+describe("printStep", () => {
+  let consoleSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    consoleSpy.mockRestore();
+  });
+
+  it("prints without elapsed", () => {
+    printStep(1, "specialists", "4 parallel reviews");
+    const output = consoleSpy.mock.calls.map((c) => String(c[0])).join("\n");
+    expect(output).toContain("step 1");
+    expect(output).toContain("specialists");
+    expect(output).toContain("4 parallel reviews");
+  });
+
+  it("prints with elapsed but no detail", () => {
+    printStep(2, "synthesis", undefined, "2m 15s");
+    const output = consoleSpy.mock.calls.map((c) => String(c[0])).join("\n");
+    expect(output).toContain("step 2");
+    expect(output).toContain("synthesis");
+    expect(output).toContain("2m 15s");
+  });
+
+  it("prints with both detail and elapsed", () => {
+    printStep(1, "specialists", "4 parallel reviews", "30s");
+    const output = consoleSpy.mock.calls.map((c) => String(c[0])).join("\n");
+    expect(output).toContain("step 1");
+    expect(output).toContain("specialists");
+    expect(output).toContain("4 parallel reviews");
+    expect(output).toContain("30s");
+  });
+
+  it("prints without detail or elapsed", () => {
+    printStep(3, "verification");
+    const output = consoleSpy.mock.calls.map((c) => String(c[0])).join("\n");
+    expect(output).toContain("step 3");
+    expect(output).toContain("verification");
+  });
+});
+
+describe("printLimitReached", () => {
+  let consoleSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    consoleSpy.mockRestore();
+  });
+
+  it("prints with elapsed", () => {
+    printLimitReached(10, "ralph", "build", false, "15m 30s");
+    const output = consoleSpy.mock.calls.map((c) => String(c[0])).join("\n");
+    expect(output).toContain("iteration limit reached (10)");
+    expect(output).toContain("15m 30s");
+  });
+
+  it("prints without elapsed (backward-compatible)", () => {
+    printLimitReached(5, "ralph", "build", false);
+    const output = consoleSpy.mock.calls.map((c) => String(c[0])).join("\n");
+    expect(output).toContain("iteration limit reached (5)");
+  });
+});
+
+describe("printTimingSummary", () => {
+  let consoleSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    consoleSpy.mockRestore();
+  });
+
+  it("prints step and total durations", () => {
+    printTimingSummary(45, 135);
+    const output = String(consoleSpy.mock.calls[0][0]);
+    expect(output).toContain("45s elapsed");
+    expect(output).toContain("2m 15s total");
+  });
+
+  it("formats both durations correctly", () => {
+    printTimingSummary(10, 3661);
+    const output = String(consoleSpy.mock.calls[0][0]);
+    expect(output).toContain("10s elapsed");
+    expect(output).toContain("1h 1m total");
   });
 });
 

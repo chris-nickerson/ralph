@@ -58,29 +58,29 @@ export function printPhase(
   iteration: number,
   phase: string,
   detail?: string,
+  elapsed?: string,
 ): void {
   console.log("");
   console.log(dim(line()));
-  if (detail) {
-    console.log(
-      `  iteration ${iteration} ${dim(SYM_DOT)} ${phase} ${dim(SYM_DOT)} ${detail}`,
-    );
-  } else {
-    console.log(`  iteration ${iteration} ${dim(SYM_DOT)} ${phase}`);
-  }
+  let msg = `  iteration ${iteration} ${dim(SYM_DOT)} ${phase}`;
+  if (detail) msg += ` ${dim(SYM_DOT)} ${detail}`;
+  if (elapsed) msg += ` ${dim(SYM_DOT)} ${dim(elapsed)}`;
+  console.log(msg);
   console.log("");
 }
 
-export function printStep(step: number, label: string, detail?: string): void {
+export function printStep(
+  step: number,
+  label: string,
+  detail?: string,
+  elapsed?: string,
+): void {
   console.log("");
   console.log(dim(line()));
-  if (detail) {
-    console.log(
-      `  step ${step} ${dim(SYM_DOT)} ${label} ${dim(SYM_DOT)} ${detail}`,
-    );
-  } else {
-    console.log(`  step ${step} ${dim(SYM_DOT)} ${label}`);
-  }
+  let msg = `  step ${step} ${dim(SYM_DOT)} ${label}`;
+  if (detail) msg += ` ${dim(SYM_DOT)} ${detail}`;
+  if (elapsed) msg += ` ${dim(SYM_DOT)} ${dim(elapsed)}`;
+  console.log(msg);
   console.log("");
 }
 
@@ -95,15 +95,29 @@ export function printComplete(iterations: number, elapsed: string): void {
   console.log("");
 }
 
+export function printTimingSummary(
+  stepSeconds: number,
+  totalSeconds: number,
+): void {
+  console.log(
+    dim(
+      `  ${formatDuration(stepSeconds)} elapsed ${SYM_DOT} ${formatDuration(totalSeconds)} total`,
+    ),
+  );
+}
+
 export function printLimitReached(
   max: number,
   scriptName: string,
   mode: string,
   isWorktree: boolean,
+  elapsed?: string,
 ): void {
   console.log("");
   console.log(dim(line()));
-  console.log(`  ${yellow(SYM_PAUSE)} iteration limit reached (${max})`);
+  let msg = `  ${yellow(SYM_PAUSE)} iteration limit reached (${max})`;
+  if (elapsed) msg += ` ${dim(SYM_DOT)} ${dim(elapsed)}`;
+  console.log(msg);
   if (!isWorktree) {
     console.log(`  ${dim("Run")} ${scriptName} ${mode} ${dim("to continue")}`);
   }
