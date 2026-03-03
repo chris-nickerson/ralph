@@ -5,6 +5,7 @@ import { loadReview } from "../state.js";
 import {
   dim,
   formatDuration,
+  secondsSince,
   printHeader,
   printKv,
   printError,
@@ -41,7 +42,7 @@ export async function runFix(
 
   await runAgent(prompt, config, options, "fixing");
 
-  const elapsed = Math.floor((Date.now() - startTime) / 1000);
+  const elapsed = secondsSince(startTime);
   console.log("");
   console.log(dim(`  completed in ${formatDuration(elapsed)}`));
 

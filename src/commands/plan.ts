@@ -12,6 +12,7 @@ import {
   SYM_BULLET,
   line,
   formatDuration,
+  secondsSince,
   printHeader,
   printKv,
   printWarning,
@@ -75,7 +76,7 @@ export async function runPlan(
 
   await runAgent(prompt, config, options, "planning");
 
-  const elapsed = Math.floor((Date.now() - startTime) / 1000);
+  const elapsed = secondsSince(startTime);
 
   if (!(await hasContent("IMPLEMENTATION_PLAN.md"))) {
     printError("agent did not create a plan");

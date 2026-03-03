@@ -44,6 +44,7 @@ vi.mock("../../src/ui.js", () => ({
   SYM_BULLET: "*",
   line: () => "-".repeat(74),
   formatDuration: (s: number) => `${s}s`,
+  secondsSince: (start: number) => Math.max(0, Math.floor((Date.now() - start) / 1000)),
   printHeader: mocks.printHeader,
   printKv: mocks.printKv,
   printWarning: mocks.printWarning,

@@ -25,6 +25,7 @@ vi.mock("../../src/state.js", () => ({
 vi.mock("../../src/ui.js", () => ({
   dim: (s: string) => s,
   formatDuration: (s: number) => `${s}s`,
+  secondsSince: (start: number) => Math.max(0, Math.floor((Date.now() - start) / 1000)),
   printHeader: mocks.printHeader,
   printKv: mocks.printKv,
   printError: mocks.printError,

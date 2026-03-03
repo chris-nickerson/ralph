@@ -37,7 +37,7 @@ describe("formatDuration", () => {
   });
 
   it("formats exact minutes", () => {
-    expect(formatDuration(120)).toBe("2m 0s");
+    expect(formatDuration(120)).toBe("2m");
   });
 
   it("formats hours and minutes", () => {
