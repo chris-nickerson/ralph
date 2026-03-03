@@ -24,7 +24,6 @@ import {
   printHeader,
   printKv,
   printStep,
-  printTimingSummary,
   printError,
   printWarning,
 } from "../ui.js";
@@ -53,10 +52,7 @@ export async function runReviewPipeline(
   const pipelineStart = startTime ?? Date.now();
 
   // Phase 1: Specialists
-  let elapsed = secondsSince(pipelineStart);
-  printStep(1, "specialists", "4 parallel reviews", elapsed);
-
-  let phaseStart = Date.now();
+  printStep(1, "specialists", "4 parallel reviews");
 
   const specialistPrompts = await Promise.all(
     ([1, 2, 3, 4] as const).map((i) => buildSpecialistPrompt(i, context)),
@@ -68,10 +64,6 @@ export async function runReviewPipeline(
   }));
 
   const results = await runAgentsParallel(tasks, config, options, SPECIALIST_COLORS);
-
-  let stepSeconds = secondsSince(phaseStart);
-  let totalSeconds = secondsSince(pipelineStart);
-  printTimingSummary(stepSeconds, totalSeconds);
 
   const successful = results.filter((r) => r.exitCode === 0 && r.output);
   const failed = results.filter((r) => r.exitCode !== 0 || !r.output);
@@ -85,10 +77,7 @@ export async function runReviewPipeline(
   }
 
   // Phase 2: Synthesis
-  elapsed = secondsSince(pipelineStart);
-  printStep(2, "synthesis", undefined, elapsed);
-
-  phaseStart = Date.now();
+  printStep(2, "synthesis");
 
   const specialistOutputs = successful.map((r) => ({
     label: r.label,
@@ -97,10 +86,6 @@ export async function runReviewPipeline(
 
   const synthPrompt = await buildSynthesisPrompt(specialistOutputs, context);
   const synthResult = await runAgent(synthPrompt, config, options, "synthesizing", true);
-
-  stepSeconds = secondsSince(phaseStart);
-  totalSeconds = secondsSince(pipelineStart);
-  printTimingSummary(stepSeconds, totalSeconds);
 
   if (synthResult.exitCode !== 0 || !synthResult.output) {
     printWarning("synthesis failed, showing specialist outputs");
@@ -115,17 +100,10 @@ export async function runReviewPipeline(
   const synthesizedReview = synthResult.output;
 
   // Phase 3: Verification
-  elapsed = secondsSince(pipelineStart);
-  printStep(3, "verification", undefined, elapsed);
-
-  phaseStart = Date.now();
+  printStep(3, "verification");
 
   const verifyPrompt = await buildVerificationPrompt(synthesizedReview, context);
   const verifyResult = await runAgent(verifyPrompt, config, options, "verifying");
-
-  stepSeconds = secondsSince(phaseStart);
-  totalSeconds = secondsSince(pipelineStart);
-  printTimingSummary(stepSeconds, totalSeconds);
 
   if (verifyResult.exitCode !== 0 || !verifyResult.output) {
     printWarning("verification failed, showing synthesized review");

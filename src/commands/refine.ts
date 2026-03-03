@@ -15,7 +15,6 @@ import {
   printHeader,
   printKv,
   printPhase,
-  printTimingSummary,
   printLimitReached,
   printWorktreeNext,
   printError,
@@ -79,9 +78,8 @@ export async function runRefine(
       return { done: false, iterations: iteration - 1 };
     }
 
-    printPhase(iteration, phase, undefined, secondsSince(startTime));
+    printPhase(iteration, phase);
 
-    const iterStart = Date.now();
     const prompt = await loadRefinePrompt(phase);
     const { output, exitCode } = await runAgent(
       prompt,
@@ -89,10 +87,6 @@ export async function runRefine(
       options,
       phase,
     );
-
-    const iterElapsed = secondsSince(iterStart);
-    console.log("");
-    printTimingSummary(iterElapsed, secondsSince(startTime));
 
     if (exitCode !== 0) {
       consecutiveFailures++;

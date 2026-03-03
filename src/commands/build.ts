@@ -15,7 +15,6 @@ import {
   printKv,
   printPhase,
   printComplete,
-  printTimingSummary,
   printLimitReached,
   printWorktreeNext,
   printError,
@@ -100,13 +99,9 @@ export async function runBuild(
       return { status: "limit_reached", iterations: iteration - 1 };
     }
 
-    const iterStart = Date.now();
-
-    const elapsed = secondsSince(startTime);
-
     taskCount = await countTasks();
     const taskWord = taskCount === 1 ? "task" : "tasks";
-    printPhase(iteration, "build", `${taskCount} ${taskWord} remaining`, elapsed);
+    printPhase(iteration, "build", `${taskCount} ${taskWord} remaining`);
 
     const buildPrompt = await buildBuildPrompt(options.noReview, options.noCommit);
     const { exitCode } = await runAgent(buildPrompt, config, options, "building");
@@ -123,20 +118,16 @@ export async function runBuild(
     consecutiveFailures = 0;
 
     if (!options.noReview) {
-      printPhase(iteration, "review", undefined, secondsSince(startTime));
+      printPhase(iteration, "review");
 
       const reviewPrompt = await buildReviewPrompt(options.noCommit);
       await runAgent(reviewPrompt, config, options, "reviewing");
     }
 
-    const iterElapsed = secondsSince(iterStart);
-    console.log("");
-    printTimingSummary(iterElapsed, secondsSince(startTime));
-
     taskCount = await countTasks();
     if (taskCount === 0) {
       if (!options.noReview) {
-        printPhase(iteration, "final review", undefined, secondsSince(startTime));
+        printPhase(iteration, "final review");
 
         const range = options.noCommit ? startHash : `${startHash}..HEAD`;
         const context: CodeReviewContext = {
@@ -156,7 +147,7 @@ export async function runBuild(
           await saveReview(reviewContent);
 
           if (needsRevision) {
-            printPhase(iteration, "fix", undefined, secondsSince(startTime));
+            printPhase(iteration, "fix");
             const fixPrompt = await buildFixPrompt(reviewContent, undefined, options.noCommit);
             await runAgent(fixPrompt, config, options, "fixing");
           }

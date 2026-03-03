@@ -9,7 +9,6 @@ const mocks = vi.hoisted(() => ({
   printHeader: vi.fn(),
   printKv: vi.fn(),
   printPhase: vi.fn(),
-  printTimingSummary: vi.fn(),
   printLimitReached: vi.fn(),
   printWorktreeNext: vi.fn(),
   printError: vi.fn(),
@@ -39,7 +38,6 @@ vi.mock("../../src/ui.js", () => ({
   printHeader: mocks.printHeader,
   printKv: mocks.printKv,
   printPhase: mocks.printPhase,
-  printTimingSummary: mocks.printTimingSummary,
   printLimitReached: mocks.printLimitReached,
   printWorktreeNext: mocks.printWorktreeNext,
   printError: mocks.printError,
@@ -102,9 +100,9 @@ describe("runRefine", () => {
     expect(result).toEqual({ done: false, iterations: 3 });
 
     const phaseCalls = mocks.printPhase.mock.calls;
-    expect(phaseCalls[0]).toEqual([1, "investigate", undefined, expect.any(Number)]);
-    expect(phaseCalls[1]).toEqual([2, "review", undefined, expect.any(Number)]);
-    expect(phaseCalls[2]).toEqual([3, "investigate", undefined, expect.any(Number)]);
+    expect(phaseCalls[0]).toEqual([1, "investigate"]);
+    expect(phaseCalls[1]).toEqual([2, "review"]);
+    expect(phaseCalls[2]).toEqual([3, "investigate"]);
 
     const promptCalls = mocks.loadRefinePrompt.mock.calls;
     expect(promptCalls[0][0]).toBe("investigate");
