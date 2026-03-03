@@ -1,6 +1,6 @@
 You are in BUILD mode. Implement one task from the plan.
 
-This runs in a loop — each invocation handles one task. A separate review agent checks your work and commits afterward. Focus on correct, working code. Do not try to be perfect. Do not commit.
+This runs in a loop — each invocation handles one task. Focus on correct, working code.
 
 ## Context Loading
 
@@ -46,4 +46,16 @@ Make the changes needed to complete the task:
    ---
    ```
 
-Do NOT commit — the review step handles that.
+## Step 5: Commit
+
+After implementing and validating:
+
+```bash
+git add -A
+git reset HEAD -- progress.txt IMPLEMENTATION_PLAN.md GOAL.md REVIEW.md 2>/dev/null || true
+git commit -m "type: description"
+```
+
+Use conventional commit types: feat, fix, refactor, test, docs, chore. The message describes what was implemented.
+
+Do NOT add co-author lines or AI attribution.
