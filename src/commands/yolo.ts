@@ -6,8 +6,13 @@ import { runBuild, isSuccessStatus } from "./build.js";
 import type { BuildResult } from "./build.js";
 import {
   dim,
+  formatDuration,
+  green,
+  line,
   printHeader,
   printKv,
+  SYM_CHECK,
+  SYM_DOT,
 } from "../ui.js";
 
 export interface YoloResult {
@@ -20,6 +25,7 @@ export async function runYolo(
   options: RalphOptions,
   worktreeInfo?: WorktreeInfo,
 ): Promise<YoloResult> {
+  const startTime = Date.now();
   const skipRefine = options.noRefine;
   options = { ...options, force: true, noRefine: true };
 
@@ -41,6 +47,8 @@ export async function runYolo(
 
   const planResult = await runPlan(goal, config, options, worktreeInfo);
   if (planResult.status !== "created") {
+    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+    console.log(dim(`  ${formatDuration(elapsed)} total`));
     return { status: "plan_failed" };
   }
 
@@ -53,8 +61,15 @@ export async function runYolo(
 
   const result: BuildResult = await runBuild(10, config, options, worktreeInfo);
 
+  const elapsed = Math.floor((Date.now() - startTime) / 1000);
   if (!isSuccessStatus(result.status)) {
+    console.log(dim(`  ${formatDuration(elapsed)} total`));
     return { status: "build_failed" };
   }
+  console.log("");
+  console.log(dim(line()));
+  console.log(`  ${green(SYM_CHECK)} ${dim(SYM_DOT)} yolo complete ${dim(SYM_DOT)} ${formatDuration(elapsed)}`);
+  console.log(dim(line()));
+  console.log("");
   return { status: "completed" };
 }
