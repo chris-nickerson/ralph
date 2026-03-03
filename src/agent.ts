@@ -218,7 +218,13 @@ async function runWithSpinner(
   );
 
   clearInterval(timer);
-  spinner.stop();
+  const finalText = spinnerText();
+  const succeeded = !spawnError && !timedOut && exitCode === 0 && output !== '';
+  if (succeeded) {
+    spinner.succeed(finalText);
+  } else {
+    spinner.fail(finalText);
+  }
 
   if (output && !silent) {
     process.stdout.write(output);

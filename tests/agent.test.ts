@@ -113,6 +113,8 @@ describe("runAgent", () => {
       default: () => ({
         start: vi.fn().mockReturnThis(),
         stop: vi.fn(),
+        succeed: vi.fn(),
+        fail: vi.fn(),
         set text(_: string) {},
       }),
     }));
@@ -153,6 +155,8 @@ describe("runAgent", () => {
       default: () => ({
         start: vi.fn().mockReturnThis(),
         stop: vi.fn(),
+        succeed: vi.fn(),
+        fail: vi.fn(),
         set text(_: string) {},
       }),
     }));
@@ -187,6 +191,8 @@ describe("runAgent", () => {
       default: () => ({
         start: vi.fn().mockReturnThis(),
         stop: vi.fn(),
+        succeed: vi.fn(),
+        fail: vi.fn(),
         set text(_: string) {},
       }),
     }));
@@ -221,6 +227,8 @@ describe("runAgent", () => {
       default: () => ({
         start: vi.fn().mockReturnThis(),
         stop: vi.fn(),
+        succeed: vi.fn(),
+        fail: vi.fn(),
         set text(_: string) {},
       }),
     }));
@@ -256,6 +264,8 @@ describe("runAgent", () => {
       default: () => ({
         start: vi.fn().mockReturnThis(),
         stop: vi.fn(),
+        succeed: vi.fn(),
+        fail: vi.fn(),
         set text(_: string) {},
       }),
     }));
@@ -294,6 +304,8 @@ describe("runAgent", () => {
       default: () => ({
         start: vi.fn().mockReturnThis(),
         stop: vi.fn(),
+        succeed: vi.fn(),
+        fail: vi.fn(),
         set text(_: string) {},
       }),
     }));
@@ -336,6 +348,8 @@ describe("runAgent", () => {
       default: () => ({
         start: vi.fn().mockReturnThis(),
         stop: vi.fn(),
+        succeed: vi.fn(),
+        fail: vi.fn(),
         set text(_: string) {},
       }),
     }));
@@ -357,6 +371,86 @@ describe("runAgent", () => {
     const result = await resultPromise;
     expect(result.output).toBe("output text");
     expect(result.exitCode).toBe(0);
+  });
+
+  it("calls spinner.succeed on successful completion", async () => {
+    const mockChild = createMockChild();
+    spawnMock = vi.fn().mockReturnValue(mockChild);
+
+    vi.doMock("node:child_process", () => ({
+      spawn: spawnMock,
+      execFileSync: vi.fn(),
+    }));
+
+    const succeedFn = vi.fn();
+    const failFn = vi.fn();
+    vi.doMock("ora", () => ({
+      default: () => ({
+        start: vi.fn().mockReturnThis(),
+        stop: vi.fn(),
+        succeed: succeedFn,
+        fail: failFn,
+        set text(_: string) {},
+      }),
+    }));
+
+    const { runAgent } = await import("../src/agent.js");
+
+    const resultPromise = runAgent(
+      "test prompt",
+      AGENTS.claude,
+      makeOptions(),
+      "building",
+    );
+
+    mockChild.stdout.emit("data", Buffer.from("output text"));
+    mockChild.emit("close", 0);
+
+    await resultPromise;
+
+    expect(succeedFn).toHaveBeenCalledOnce();
+    expect(succeedFn.mock.calls[0][0]).toContain("building");
+    expect(failFn).not.toHaveBeenCalled();
+  });
+
+  it("calls spinner.fail on non-zero exit", async () => {
+    const mockChild = createMockChild();
+    spawnMock = vi.fn().mockReturnValue(mockChild);
+
+    vi.doMock("node:child_process", () => ({
+      spawn: spawnMock,
+      execFileSync: vi.fn(),
+    }));
+
+    const succeedFn = vi.fn();
+    const failFn = vi.fn();
+    vi.doMock("ora", () => ({
+      default: () => ({
+        start: vi.fn().mockReturnThis(),
+        stop: vi.fn(),
+        succeed: succeedFn,
+        fail: failFn,
+        set text(_: string) {},
+      }),
+    }));
+
+    const { runAgent } = await import("../src/agent.js");
+
+    const resultPromise = runAgent(
+      "test prompt",
+      AGENTS.claude,
+      makeOptions(),
+      "building",
+    );
+
+    mockChild.stdout.emit("data", Buffer.from("some output"));
+    mockChild.emit("close", 1);
+
+    await resultPromise;
+
+    expect(failFn).toHaveBeenCalledOnce();
+    expect(failFn.mock.calls[0][0]).toContain("building");
+    expect(succeedFn).not.toHaveBeenCalled();
   });
 });
 
@@ -401,6 +495,8 @@ describe("killAgent", () => {
       default: () => ({
         start: vi.fn().mockReturnThis(),
         stop: vi.fn(),
+        succeed: vi.fn(),
+        fail: vi.fn(),
         set text(_: string) {},
       }),
     }));
