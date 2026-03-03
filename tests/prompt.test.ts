@@ -7,7 +7,6 @@ import {
   loadPrompt,
   buildPlanPrompt,
   buildBuildPrompt,
-  buildReviewPrompt,
   buildFixPrompt,
   loadRefinePrompt,
   buildSpecialistPrompt,
@@ -72,47 +71,14 @@ describe("buildPlanPrompt", () => {
 });
 
 describe("buildBuildPrompt", () => {
-  it("returns base prompt with no overrides when review enabled", async () => {
-    const prompt = await buildBuildPrompt(false, false);
+  it("returns base prompt with no overrides", async () => {
+    const prompt = await buildBuildPrompt(false);
     expect(prompt).toContain("BUILD mode");
     expect(prompt).not.toContain("Override");
   });
 
-  it("appends no-review + no-commit override", async () => {
-    const prompt = await buildBuildPrompt(true, true);
-    expect(prompt).toContain("## Override: No Commits");
-    expect(prompt).toContain("There is no review step");
-    expect(prompt).toContain("Leave all changes in the working tree");
-    expect(prompt).not.toContain("git add -A");
-  });
-
-  it("appends no-review + commit override", async () => {
-    const prompt = await buildBuildPrompt(true, false);
-    expect(prompt).toContain("## Override: Commit");
-    expect(prompt).toContain("There is no review step");
-    expect(prompt).toContain("git add -A");
-    expect(prompt).toContain("conventional commit types");
-    expect(prompt).toContain("Do NOT commit:");
-    expect(prompt).toContain("Do NOT add co-author lines");
-  });
-
-  it("appends no-commit override when review enabled and no-commit", async () => {
-    const prompt = await buildBuildPrompt(false, true);
-    expect(prompt).toContain("## Override: No Commits");
-    expect(prompt).toContain("Skip the Commit section above entirely");
-    expect(prompt).not.toContain("There is no review step");
-  });
-});
-
-describe("buildReviewPrompt", () => {
-  it("returns base prompt without override when commits allowed", async () => {
-    const prompt = await buildReviewPrompt(false);
-    expect(prompt).toContain("REVIEW mode");
-    expect(prompt).not.toContain("Override");
-  });
-
   it("appends no-commit override", async () => {
-    const prompt = await buildReviewPrompt(true);
+    const prompt = await buildBuildPrompt(true);
     expect(prompt).toContain("## Override: No Commits");
     expect(prompt).toContain("Skip the Commit section above entirely");
   });

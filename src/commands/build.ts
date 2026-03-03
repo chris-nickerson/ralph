@@ -2,7 +2,7 @@ import { runAgent } from "../agent.js";
 import type { AgentConfig, RalphOptions } from "../agent.js";
 import type { WorktreeInfo } from "../git.js";
 import { getHeadHash, getCurrentBranch, getDiffStat, getCommitLog } from "../git.js";
-import { buildBuildPrompt, buildReviewPrompt, buildFixPrompt } from "../prompt.js";
+import { buildBuildPrompt, buildFixPrompt } from "../prompt.js";
 import type { CodeReviewContext } from "../prompt.js";
 import { hasContent, countTasks, saveReview } from "../state.js";
 import {
@@ -103,7 +103,7 @@ export async function runBuild(
     const taskWord = taskCount === 1 ? "task" : "tasks";
     printPhase(iteration, "build", `${taskCount} ${taskWord} remaining`);
 
-    const buildPrompt = await buildBuildPrompt(options.noReview, options.noCommit);
+    const buildPrompt = await buildBuildPrompt(options.noCommit);
     const { exitCode } = await runAgent(buildPrompt, config, options, "building", undefined, startTime);
 
     if (exitCode !== 0) {
@@ -116,13 +116,6 @@ export async function runBuild(
       continue;
     }
     consecutiveFailures = 0;
-
-    if (!options.noReview) {
-      printPhase(iteration, "review");
-
-      const reviewPrompt = await buildReviewPrompt(options.noCommit);
-      await runAgent(reviewPrompt, config, options, "reviewing", undefined, startTime);
-    }
 
     taskCount = await countTasks();
     if (taskCount === 0) {

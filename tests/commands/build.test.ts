@@ -11,7 +11,6 @@ const mocks = vi.hoisted(() => ({
   getDiffStat: vi.fn(),
   getCommitLog: vi.fn(),
   buildBuildPrompt: vi.fn(),
-  buildReviewPrompt: vi.fn(),
   buildFixPrompt: vi.fn(),
   runReviewPipeline: vi.fn(),
   printHeader: vi.fn(),
@@ -43,7 +42,6 @@ vi.mock("../../src/git.js", () => ({
 
 vi.mock("../../src/prompt.js", () => ({
   buildBuildPrompt: mocks.buildBuildPrompt,
-  buildReviewPrompt: mocks.buildReviewPrompt,
   buildFixPrompt: mocks.buildFixPrompt,
 }));
 
@@ -99,7 +97,6 @@ describe("runBuild", () => {
     mocks.getCommitLog.mockResolvedValue("log");
     mocks.saveReview.mockResolvedValue(undefined);
     mocks.buildBuildPrompt.mockResolvedValue("build prompt");
-    mocks.buildReviewPrompt.mockResolvedValue("review prompt");
     mocks.buildFixPrompt.mockResolvedValue("fix prompt");
     mocks.runAgent.mockResolvedValue({ output: "done", exitCode: 0 });
     mocks.runReviewPipeline.mockResolvedValue({ reviewContent: "review output", needsRevision: false, fallback: false });
@@ -125,7 +122,7 @@ describe("runBuild", () => {
     expect(result).toEqual({ status: "no_tasks", iterations: 0 });
   });
 
-  it("runs build and review per iteration", async () => {
+  it("runs build per iteration", async () => {
     vi.useFakeTimers();
 
     mocks.countTasks.mockResolvedValue(2);
@@ -137,33 +134,13 @@ describe("runBuild", () => {
     const result = await promise;
     expect(result).toEqual({ status: "limit_reached", iterations: 1 });
 
-    expect(mocks.buildBuildPrompt).toHaveBeenCalledWith(false, false);
-    expect(mocks.buildReviewPrompt).toHaveBeenCalledWith(false);
-    expect(mocks.runAgent).toHaveBeenCalledTimes(2);
+    expect(mocks.buildBuildPrompt).toHaveBeenCalledWith(false);
+    expect(mocks.runAgent).toHaveBeenCalledTimes(1);
 
     expect(mocks.printPhase).toHaveBeenCalledWith(1, "build", "2 tasks remaining");
-    expect(mocks.printPhase).toHaveBeenCalledWith(1, "review");
   });
 
-  it("skips review with --no-review", async () => {
-    vi.useFakeTimers();
-
-    mocks.countTasks.mockResolvedValue(2);
-    const opts = { ...defaultOptions, noReview: true };
-
-    const promise = runBuild(1, agentConfig, opts);
-
-    await vi.advanceTimersByTimeAsync(1000);
-
-    const result = await promise;
-    expect(result).toEqual({ status: "limit_reached", iterations: 1 });
-
-    expect(mocks.buildBuildPrompt).toHaveBeenCalledWith(true, false);
-    expect(mocks.buildReviewPrompt).not.toHaveBeenCalled();
-    expect(mocks.runAgent).toHaveBeenCalledTimes(1);
-  });
-
-  it("passes noCommit flag to prompt builders", async () => {
+  it("passes noCommit flag to prompt builder", async () => {
     vi.useFakeTimers();
 
     mocks.countTasks.mockResolvedValue(2);
@@ -176,8 +153,7 @@ describe("runBuild", () => {
     const result = await promise;
     expect(result).toEqual({ status: "limit_reached", iterations: 1 });
 
-    expect(mocks.buildBuildPrompt).toHaveBeenCalledWith(false, true);
-    expect(mocks.buildReviewPrompt).toHaveBeenCalledWith(true);
+    expect(mocks.buildBuildPrompt).toHaveBeenCalledWith(true);
   });
 
   it("runs final review when tasks reach 0", async () => {
@@ -371,7 +347,7 @@ describe("runBuild", () => {
     expect(mocks.printKv).toHaveBeenCalledWith("commit", "off");
   });
 
-  it("skips review when agent fails and continues to next iteration", async () => {
+  it("continues to next iteration when agent fails", async () => {
     vi.useFakeTimers();
 
     mocks.countTasks.mockResolvedValue(2);
@@ -387,8 +363,7 @@ describe("runBuild", () => {
     const result = await promise;
     expect(result).toEqual({ status: "limit_reached", iterations: 2 });
 
-    expect(mocks.runAgent).toHaveBeenCalledTimes(3);
-    expect(mocks.buildReviewPrompt).toHaveBeenCalledTimes(1);
+    expect(mocks.runAgent).toHaveBeenCalledTimes(2);
   });
 
   it("resets consecutive failure count after a successful iteration", async () => {
