@@ -203,6 +203,7 @@ describe("runBuild", () => {
       expect.objectContaining({ diffCmd: "git diff abc123..HEAD" }),
       agentConfig,
       defaultOptions,
+      expect.any(Number),
     );
     expect(mocks.saveReview).toHaveBeenCalledWith("review output");
     expect(mocks.printComplete).toHaveBeenCalled();
@@ -309,6 +310,7 @@ describe("runBuild", () => {
       }),
       agentConfig,
       opts,
+      expect.any(Number),
     );
   });
 

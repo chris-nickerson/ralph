@@ -148,7 +148,7 @@ export async function runBuild(
           description: `build (${iteration} iterations)`,
         };
 
-        const { reviewContent, needsRevision } = await runReviewPipeline(context, config, options);
+        const { reviewContent, needsRevision } = await runReviewPipeline(context, config, options, startTime);
 
         if (reviewContent === undefined) {
           printWarning("all reviewers failed — skipping review");

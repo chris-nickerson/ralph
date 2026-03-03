@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   printHeader: vi.fn(),
   printKv: vi.fn(),
   printStep: vi.fn(),
+  printTimingSummary: vi.fn(),
   printError: vi.fn(),
   printWarning: vi.fn(),
 }));
@@ -49,6 +50,7 @@ vi.mock("../../src/ui.js", () => ({
   printHeader: mocks.printHeader,
   printKv: mocks.printKv,
   printStep: mocks.printStep,
+  printTimingSummary: mocks.printTimingSummary,
   printError: mocks.printError,
   printWarning: mocks.printWarning,
 }));
@@ -131,11 +133,11 @@ describe("runReview", () => {
     const result = await runReview(agentConfig, defaultOptions);
 
     expect(result).toEqual({ status: "completed" });
-    expect(mocks.printStep).toHaveBeenCalledWith(1, "specialists", "4 parallel reviews");
+    expect(mocks.printStep).toHaveBeenCalledWith(1, "specialists", "4 parallel reviews", expect.any(String));
     expect(mocks.runAgentsParallel).toHaveBeenCalledTimes(1);
 
-    expect(mocks.printStep).toHaveBeenCalledWith(2, "synthesis");
-    expect(mocks.printStep).toHaveBeenCalledWith(3, "verification");
+    expect(mocks.printStep).toHaveBeenCalledWith(2, "synthesis", undefined, expect.any(String));
+    expect(mocks.printStep).toHaveBeenCalledWith(3, "verification", undefined, expect.any(String));
     expect(mocks.runAgent).toHaveBeenCalledTimes(2);
   });
 
@@ -205,7 +207,7 @@ describe("runReview", () => {
     await runReview(agentConfig, defaultOptions);
 
     expect(mocks.printWarning).toHaveBeenCalledWith("synthesis failed, showing specialist outputs");
-    expect(mocks.printStep).not.toHaveBeenCalledWith(3, "verification");
+    expect(mocks.printStep).not.toHaveBeenCalledWith(3, "verification", undefined, expect.any(String));
     expect(mocks.runAgent).toHaveBeenCalledTimes(1);
   });
 
@@ -440,5 +442,48 @@ describe("runReviewPipeline", () => {
     const result = await runReviewPipeline(mockContext, agentConfig, defaultOptions);
 
     expect(result.needsRevision).toBe(false);
+  });
+
+  it("calls printTimingSummary after each pipeline phase on full success", async () => {
+    await runReviewPipeline(mockContext, agentConfig, defaultOptions);
+
+    expect(mocks.printTimingSummary).toHaveBeenCalledTimes(3);
+    for (const call of mocks.printTimingSummary.mock.calls) {
+      expect(call[0]).toEqual(expect.any(Number));
+      expect(call[1]).toEqual(expect.any(Number));
+    }
+  });
+
+  it("calls printTimingSummary after specialists and synthesis when verification fails", async () => {
+    mocks.runAgent.mockReset();
+    mocks.runAgent
+      .mockResolvedValueOnce({ output: "synthesized review", exitCode: 0 })
+      .mockResolvedValueOnce({ output: "", exitCode: 1 });
+
+    await runReviewPipeline(mockContext, agentConfig, defaultOptions);
+
+    expect(mocks.printTimingSummary).toHaveBeenCalledTimes(3);
+  });
+
+  it("calls printTimingSummary after specialists and synthesis when synthesis fails", async () => {
+    mocks.runAgent.mockReset();
+    mocks.runAgent.mockResolvedValueOnce({ output: "", exitCode: 1 });
+
+    await runReviewPipeline(mockContext, agentConfig, defaultOptions);
+
+    expect(mocks.printTimingSummary).toHaveBeenCalledTimes(2);
+  });
+
+  it("calls printTimingSummary only after specialists when all specialists fail", async () => {
+    mocks.runAgentsParallel.mockResolvedValue([
+      { output: "", exitCode: 1, label: "Correctness" },
+      { output: "", exitCode: 1, label: "Code Quality" },
+      { output: "", exitCode: 1, label: "Test Quality" },
+      { output: "", exitCode: 1, label: "Security & Perf" },
+    ]);
+
+    await runReviewPipeline(mockContext, agentConfig, defaultOptions);
+
+    expect(mocks.printTimingSummary).toHaveBeenCalledTimes(1);
   });
 });
