@@ -451,6 +451,64 @@ describe("MultiSpinner", () => {
     });
   });
 
+  describe("totalStartTime footer", () => {
+    it("renders a footer line containing 'total' in TTY mode", () => {
+      const totalStart = Date.now() - 60000;
+      const spinner = new MultiSpinner({
+        labels: ["Alpha", "Beta"],
+        startTime: Date.now(),
+        isTTY: true,
+        totalStartTime: totalStart,
+      });
+      spinner.start();
+      const output = allOutput();
+      expect(output).toContain("total");
+      spinner.stop();
+    });
+
+    it("does not render footer when totalStartTime is not set in TTY mode", () => {
+      const spinner = new MultiSpinner({
+        labels: ["Alpha"],
+        startTime: Date.now(),
+        isTTY: true,
+      });
+      spinner.start();
+      const output = allOutput();
+      expect(output).not.toContain("total");
+      spinner.stop();
+    });
+
+    it("prints footer on stop in non-TTY mode", () => {
+      const totalStart = Date.now() - 120000;
+      const spinner = new MultiSpinner({
+        labels: ["Alpha"],
+        startTime: Date.now(),
+        isTTY: false,
+        totalStartTime: totalStart,
+      });
+      spinner.start();
+      stdoutSpy.mockClear();
+      spinner.succeed(0);
+      spinner.stop();
+      const output = allOutput();
+      expect(output).toContain("total");
+    });
+
+    it("does not print footer on stop in non-TTY mode without totalStartTime", () => {
+      const spinner = new MultiSpinner({
+        labels: ["Alpha"],
+        startTime: Date.now(),
+        isTTY: false,
+      });
+      spinner.start();
+      stdoutSpy.mockClear();
+      spinner.succeed(0);
+      spinner.stop();
+      const output = allOutput();
+      expect(output).not.toContain("total");
+    });
+  });
+
   describe("per-line colors", () => {
     it("applies color function to spinning lines in TTY mode", () => {
       const colorFn = vi.fn((s: string) => `[${s}]`);

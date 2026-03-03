@@ -1,7 +1,7 @@
 import { spawn, execFileSync } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
 import ora from "ora";
-import { isUtf8, dim, formatDuration, printWarning, MultiSpinner, SPINNER_INTERVAL_MS } from "./ui.js";
+import { isUtf8, dim, formatDuration, secondsSince, printWarning, MultiSpinner, SPINNER_INTERVAL_MS } from "./ui.js";
 
 export interface AgentConfig {
   name: string;
@@ -83,11 +83,12 @@ export async function runAgent(
   options: RalphOptions,
   activity: string,
   silent?: boolean,
+  totalStartTime?: number,
 ): Promise<{ output: string; exitCode: number }> {
   if (options.debug) {
     return runDebug(prompt, config, options.timeout);
   }
-  return runWithSpinner(prompt, config, activity, options.timeout, silent);
+  return runWithSpinner(prompt, config, activity, options.timeout, silent, totalStartTime);
 }
 
 interface SpawnResult {
@@ -191,6 +192,7 @@ async function runWithSpinner(
   activity: string,
   timeout: number,
   silent?: boolean,
+  totalStartTime?: number,
 ): Promise<{ output: string; exitCode: number }> {
   const startTime = Date.now();
   const spinner = ora({
@@ -199,12 +201,16 @@ async function runWithSpinner(
     interval: SPINNER_INTERVAL_MS,
   });
 
-  const elapsed = () =>
-    formatDuration(Math.floor((Date.now() - startTime) / 1000));
-  spinner.start(`${activity} ${dim(elapsed())}`);
+  const elapsed = () => formatDuration(secondsSince(startTime));
+  const totalElapsed = () => formatDuration(secondsSince(totalStartTime!));
+  const spinnerText = () =>
+    totalStartTime != null
+      ? `${activity}  ${elapsed()} ${dim('• ' + totalElapsed() + ' total')}`
+      : `${activity} ${dim(elapsed())}`;
+  spinner.start(spinnerText());
 
   const timer = setInterval(() => {
-    spinner.text = `${activity} ${dim(elapsed())}`;
+    spinner.text = spinnerText();
   }, SPINNER_INTERVAL_MS);
 
   const { output, exitCode, timedOut, spawnError } = await spawnAgent(
@@ -239,6 +245,7 @@ export async function runAgentsParallel(
   config: AgentConfig,
   options: RalphOptions,
   colors?: Array<(s: string) => string>,
+  totalStartTime?: number,
 ): Promise<Array<{ output: string; exitCode: number; label: string }>> {
   if (options.debug) {
     const results: Array<{ output: string; exitCode: number; label: string }> = [];
@@ -255,6 +262,7 @@ export async function runAgentsParallel(
     labels: tasks.map((t) => t.label),
     startTime,
     colors,
+    totalStartTime,
   });
 
   spinner.start();

@@ -174,6 +174,7 @@ export interface MultiSpinnerOptions {
   startTime: number;
   isTTY?: boolean;
   colors?: Array<(s: string) => string>;
+  totalStartTime?: number;
 }
 
 type LineState = "spinning" | "succeeded" | "failed";
@@ -189,6 +190,7 @@ export class MultiSpinner {
   private maxLabelLen: number;
   private frames: string[];
   private colors: Array<(s: string) => string>;
+  private totalStartTime: number | undefined;
 
   constructor(options: MultiSpinnerOptions) {
     this.labels = options.labels;
@@ -199,6 +201,7 @@ export class MultiSpinner {
     this.maxLabelLen = Math.max(0, ...options.labels.map((l) => l.length));
     this.frames = isUtf8 ? SPINNER_FRAMES_UTF8 : SPINNER_FRAMES_ASCII;
     this.colors = options.colors ?? options.labels.map(() => (s: string) => s);
+    this.totalStartTime = options.totalStartTime;
   }
 
   start(): void {
@@ -212,7 +215,8 @@ export class MultiSpinner {
     this.render();
     this.interval = setInterval(() => {
       this.frameIndex = (this.frameIndex + 1) % this.frames.length;
-      process.stdout.write(`\x1b[${this.labels.length}A`);
+      const lines = this.totalStartTime != null ? this.labels.length + 1 : this.labels.length;
+      process.stdout.write(`\x1b[${lines}A`);
       this.render();
     }, SPINNER_INTERVAL_MS);
   }
@@ -247,8 +251,12 @@ export class MultiSpinner {
       this.interval = null;
     }
     if (this.tty) {
-      process.stdout.write(`\x1b[${this.labels.length}A`);
+      const lines = this.totalStartTime != null ? this.labels.length + 1 : this.labels.length;
+      process.stdout.write(`\x1b[${lines}A`);
       this.render();
+    } else if (this.totalStartTime != null) {
+      const total = formatDuration(secondsSince(this.totalStartTime));
+      process.stdout.write(`  ${dim(total + ' total')}\n`);
     }
     process.stdout.write("\n");
   }
@@ -272,6 +280,13 @@ export class MultiSpinner {
           break;
       }
       process.stdout.write(`\x1b[2K  ${prefix} ${label}  ${timeStr}\n`);
+    }
+    if (this.totalStartTime != null) {
+      const total = formatDuration(secondsSince(this.totalStartTime));
+      const prefixLen = isUtf8 ? 1 : 4;
+      const pad = 2 + prefixLen + 1 + this.maxLabelLen + 2;
+      const footer = dim(total + ' total');
+      process.stdout.write(`\x1b[2K${' '.repeat(pad)}${footer}\n`);
     }
   }
 }

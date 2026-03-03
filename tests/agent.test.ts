@@ -322,6 +322,42 @@ describe("runAgent", () => {
 
     stdoutSpy.mockRestore();
   });
+
+  it("accepts totalStartTime parameter without error", async () => {
+    const mockChild = createMockChild();
+    spawnMock = vi.fn().mockReturnValue(mockChild);
+
+    vi.doMock("node:child_process", () => ({
+      spawn: spawnMock,
+      execFileSync: vi.fn(),
+    }));
+
+    vi.doMock("ora", () => ({
+      default: () => ({
+        start: vi.fn().mockReturnThis(),
+        stop: vi.fn(),
+        set text(_: string) {},
+      }),
+    }));
+
+    const { runAgent } = await import("../src/agent.js");
+
+    const resultPromise = runAgent(
+      "test prompt",
+      AGENTS.claude,
+      makeOptions(),
+      "building",
+      undefined,
+      Date.now() - 30000,
+    );
+
+    mockChild.stdout.emit("data", Buffer.from("output text"));
+    mockChild.emit("close", 0);
+
+    const result = await resultPromise;
+    expect(result.output).toBe("output text");
+    expect(result.exitCode).toBe(0);
+  });
 });
 
 describe("killAgent", () => {
