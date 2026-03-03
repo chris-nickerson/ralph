@@ -20,12 +20,16 @@ import { saveReview } from "../state.js";
 import {
   dim,
   formatDuration,
+  green,
+  line,
   secondsSince,
   printHeader,
   printKv,
   printStep,
   printError,
   printWarning,
+  SYM_CHECK,
+  SYM_DOT,
 } from "../ui.js";
 
 const SPECIALIST_LABELS = [
@@ -178,7 +182,10 @@ export async function runReview(
 
   const elapsed = secondsSince(startTime);
   console.log("");
-  console.log(dim(`  completed in ${formatDuration(elapsed)}`));
+  console.log(dim(line()));
+  console.log(`  ${green(SYM_CHECK)} ${dim(SYM_DOT)} review complete ${dim(SYM_DOT)} ${formatDuration(elapsed)}`);
+  console.log(dim(line()));
+  console.log("");
 
   return { status: "completed" };
 }

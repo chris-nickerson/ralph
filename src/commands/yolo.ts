@@ -9,11 +9,13 @@ import {
   formatDuration,
   secondsSince,
   green,
+  yellow,
   line,
   printHeader,
   printKv,
   SYM_CHECK,
   SYM_DOT,
+  SYM_PAUSE,
 } from "../ui.js";
 
 export interface YoloResult {
@@ -49,7 +51,7 @@ export async function runYolo(
   const planResult = await runPlan(goal, config, options, worktreeInfo);
   if (planResult.status !== "created") {
     const elapsed = secondsSince(startTime);
-    console.log(dim(`  ${formatDuration(elapsed)} total`));
+    console.log(`  ${yellow(SYM_PAUSE)} plan failed ${dim(SYM_DOT)} ${formatDuration(elapsed)}`);
     return { status: "plan_failed" };
   }
 
@@ -64,7 +66,7 @@ export async function runYolo(
 
   const elapsed = secondsSince(startTime);
   if (!isSuccessStatus(result.status)) {
-    console.log(dim(`  ${formatDuration(elapsed)} total`));
+    console.log(`  ${yellow(SYM_PAUSE)} build failed ${dim(SYM_DOT)} ${formatDuration(elapsed)}`);
     return { status: "build_failed" };
   }
   console.log("");

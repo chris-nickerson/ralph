@@ -31,11 +31,13 @@ vi.mock("../../src/ui.js", () => ({
   formatDuration: (s: number) => `${s}s`,
   secondsSince: (start: number) => Math.max(0, Math.floor((Date.now() - start) / 1000)),
   green: (s: string) => s,
+  yellow: (s: string) => s,
   line: () => "-".repeat(74),
   printHeader: mocks.printHeader,
   printKv: mocks.printKv,
   SYM_CHECK: "done",
   SYM_DOT: ".",
+  SYM_PAUSE: "--",
 }));
 
 import { runYolo } from "../../src/commands/yolo.js";
@@ -256,17 +258,17 @@ describe("runYolo", () => {
     expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("yolo complete"));
   });
 
-  it("prints total elapsed on plan failure", async () => {
+  it("prints plan failed message on plan failure", async () => {
     mocks.runPlan.mockResolvedValue({ status: "failed", taskCount: 0 });
 
     await runYolo("goal", agentConfig, defaultOptions);
-    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("total"));
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("plan failed"));
   });
 
-  it("prints total elapsed on build failure", async () => {
+  it("prints build failed message on build failure", async () => {
     mocks.runBuild.mockResolvedValue({ status: "agent_failed", iterations: 1 });
 
     await runYolo("goal", agentConfig, defaultOptions);
-    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("total"));
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("build failed"));
   });
 });

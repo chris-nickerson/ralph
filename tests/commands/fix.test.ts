@@ -25,10 +25,14 @@ vi.mock("../../src/state.js", () => ({
 vi.mock("../../src/ui.js", () => ({
   dim: (s: string) => s,
   formatDuration: (s: number) => `${s}s`,
+  green: (s: string) => s,
+  line: () => "-".repeat(74),
   secondsSince: (start: number) => Math.max(0, Math.floor((Date.now() - start) / 1000)),
   printHeader: mocks.printHeader,
   printKv: mocks.printKv,
   printError: mocks.printError,
+  SYM_CHECK: "done",
+  SYM_DOT: ".",
 }));
 
 import { runFix } from "../../src/commands/fix.js";
@@ -134,5 +138,11 @@ describe("runFix", () => {
     await runFix("be conservative", agentConfig, defaultOptions);
 
     expect(mocks.printKv).toHaveBeenCalledWith("instructions", "be conservative");
+  });
+
+  it("prints unified completion message with fix complete", async () => {
+    await runFix(undefined, agentConfig, defaultOptions);
+
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("fix complete"));
   });
 });

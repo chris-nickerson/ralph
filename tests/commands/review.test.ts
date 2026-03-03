@@ -46,12 +46,16 @@ vi.mock("../../src/state.js", () => ({
 vi.mock("../../src/ui.js", () => ({
   dim: (s: string) => s,
   formatDuration: (s: number) => `${s}s`,
+  green: (s: string) => s,
+  line: () => "-".repeat(74),
   secondsSince: (start: number) => Math.max(0, Math.floor((Date.now() - start) / 1000)),
   printHeader: mocks.printHeader,
   printKv: mocks.printKv,
   printStep: mocks.printStep,
   printError: mocks.printError,
   printWarning: mocks.printWarning,
+  SYM_CHECK: "done",
+  SYM_DOT: ".",
 }));
 
 import { runReview, runReviewPipeline } from "../../src/commands/review.js";

@@ -5,10 +5,14 @@ import { loadReview } from "../state.js";
 import {
   dim,
   formatDuration,
+  green,
+  line,
   secondsSince,
   printHeader,
   printKv,
   printError,
+  SYM_CHECK,
+  SYM_DOT,
 } from "../ui.js";
 
 export interface FixResult {
@@ -44,7 +48,10 @@ export async function runFix(
 
   const elapsed = secondsSince(startTime);
   console.log("");
-  console.log(dim(`  completed in ${formatDuration(elapsed)}`));
+  console.log(dim(line()));
+  console.log(`  ${green(SYM_CHECK)} ${dim(SYM_DOT)} fix complete ${dim(SYM_DOT)} ${formatDuration(elapsed)}`);
+  console.log(dim(line()));
+  console.log("");
 
   return { status: "completed" };
 }
