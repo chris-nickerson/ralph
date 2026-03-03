@@ -63,7 +63,7 @@ export async function runReviewPipeline(
     label: SPECIALIST_LABELS[i],
   }));
 
-  const results = await runAgentsParallel(tasks, config, options, SPECIALIST_COLORS);
+  const results = await runAgentsParallel(tasks, config, options, SPECIALIST_COLORS, pipelineStart);
 
   const successful = results.filter((r) => r.exitCode === 0 && r.output);
   const failed = results.filter((r) => r.exitCode !== 0 || !r.output);
@@ -85,7 +85,7 @@ export async function runReviewPipeline(
   }));
 
   const synthPrompt = await buildSynthesisPrompt(specialistOutputs, context);
-  const synthResult = await runAgent(synthPrompt, config, options, "synthesizing", true);
+  const synthResult = await runAgent(synthPrompt, config, options, "synthesizing", true, pipelineStart);
 
   if (synthResult.exitCode !== 0 || !synthResult.output) {
     printWarning("synthesis failed, showing specialist outputs");
@@ -103,7 +103,7 @@ export async function runReviewPipeline(
   printStep(3, "verification");
 
   const verifyPrompt = await buildVerificationPrompt(synthesizedReview, context);
-  const verifyResult = await runAgent(verifyPrompt, config, options, "verifying");
+  const verifyResult = await runAgent(verifyPrompt, config, options, "verifying", undefined, pipelineStart);
 
   if (verifyResult.exitCode !== 0 || !verifyResult.output) {
     printWarning("verification failed, showing synthesized review");

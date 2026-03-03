@@ -104,7 +104,7 @@ export async function runBuild(
     printPhase(iteration, "build", `${taskCount} ${taskWord} remaining`);
 
     const buildPrompt = await buildBuildPrompt(options.noReview, options.noCommit);
-    const { exitCode } = await runAgent(buildPrompt, config, options, "building");
+    const { exitCode } = await runAgent(buildPrompt, config, options, "building", undefined, startTime);
 
     if (exitCode !== 0) {
       consecutiveFailures++;
@@ -121,7 +121,7 @@ export async function runBuild(
       printPhase(iteration, "review");
 
       const reviewPrompt = await buildReviewPrompt(options.noCommit);
-      await runAgent(reviewPrompt, config, options, "reviewing");
+      await runAgent(reviewPrompt, config, options, "reviewing", undefined, startTime);
     }
 
     taskCount = await countTasks();
@@ -149,7 +149,7 @@ export async function runBuild(
           if (needsRevision) {
             printPhase(iteration, "fix");
             const fixPrompt = await buildFixPrompt(reviewContent, undefined, options.noCommit);
-            await runAgent(fixPrompt, config, options, "fixing");
+            await runAgent(fixPrompt, config, options, "fixing", undefined, startTime);
           }
         }
       }

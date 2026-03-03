@@ -156,6 +156,7 @@ describe("runReview", () => {
     const synthCall = mocks.runAgent.mock.calls[0];
     expect(synthCall[0]).toBe("synthesis prompt");
     expect(synthCall[4]).toBe(true);
+    expect(synthCall[5]).toEqual(expect.any(Number));
   });
 
   it("does not pass silent for verification agent", async () => {
@@ -164,6 +165,7 @@ describe("runReview", () => {
     const verifyCall = mocks.runAgent.mock.calls[1];
     expect(verifyCall[0]).toBe("verification prompt");
     expect(verifyCall[4]).toBeUndefined();
+    expect(verifyCall[5]).toEqual(expect.any(Number));
   });
 
   it("returns all_failed when all specialists fail", async () => {

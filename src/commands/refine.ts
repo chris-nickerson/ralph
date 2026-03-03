@@ -86,6 +86,8 @@ export async function runRefine(
       config,
       options,
       phase,
+      undefined,
+      startTime,
     );
 
     if (exitCode !== 0) {

@@ -252,7 +252,7 @@ describe("runBuild", () => {
     expect(result).toEqual({ status: "completed", iterations: 1 });
 
     expect(mocks.buildFixPrompt).toHaveBeenCalledWith("NEEDS REVISION found", undefined, false);
-    expect(mocks.runAgent).toHaveBeenCalledWith("fix prompt", agentConfig, defaultOptions, "fixing");
+    expect(mocks.runAgent).toHaveBeenCalledWith("fix prompt", agentConfig, defaultOptions, "fixing", undefined, expect.any(Number));
     expect(mocks.printPhase).toHaveBeenCalledWith(1, "fix");
   });
 
