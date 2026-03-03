@@ -47,6 +47,7 @@ vi.mock("../../src/state.js", () => ({
 vi.mock("../../src/ui.js", () => ({
   dim: (s: string) => s,
   formatDuration: (s: number) => `${s}s`,
+  secondsSince: (start: number) => Math.max(0, Math.floor((Date.now() - start) / 1000)),
   printHeader: mocks.printHeader,
   printKv: mocks.printKv,
   printStep: mocks.printStep,
@@ -133,11 +134,11 @@ describe("runReview", () => {
     const result = await runReview(agentConfig, defaultOptions);
 
     expect(result).toEqual({ status: "completed" });
-    expect(mocks.printStep).toHaveBeenCalledWith(1, "specialists", "4 parallel reviews", expect.any(String));
+    expect(mocks.printStep).toHaveBeenCalledWith(1, "specialists", "4 parallel reviews", expect.any(Number));
     expect(mocks.runAgentsParallel).toHaveBeenCalledTimes(1);
 
-    expect(mocks.printStep).toHaveBeenCalledWith(2, "synthesis", undefined, expect.any(String));
-    expect(mocks.printStep).toHaveBeenCalledWith(3, "verification", undefined, expect.any(String));
+    expect(mocks.printStep).toHaveBeenCalledWith(2, "synthesis", undefined, expect.any(Number));
+    expect(mocks.printStep).toHaveBeenCalledWith(3, "verification", undefined, expect.any(Number));
     expect(mocks.runAgent).toHaveBeenCalledTimes(2);
   });
 
@@ -207,7 +208,7 @@ describe("runReview", () => {
     await runReview(agentConfig, defaultOptions);
 
     expect(mocks.printWarning).toHaveBeenCalledWith("synthesis failed, showing specialist outputs");
-    expect(mocks.printStep).not.toHaveBeenCalledWith(3, "verification", undefined, expect.any(String));
+    expect(mocks.printStep).not.toHaveBeenCalledWith(3, "verification", undefined, expect.any(Number));
     expect(mocks.runAgent).toHaveBeenCalledTimes(1);
   });
 
@@ -454,7 +455,7 @@ describe("runReviewPipeline", () => {
     }
   });
 
-  it("calls printTimingSummary after specialists and synthesis when verification fails", async () => {
+  it("calls printTimingSummary after each phase even when verification fails", async () => {
     mocks.runAgent.mockReset();
     mocks.runAgent
       .mockResolvedValueOnce({ output: "synthesized review", exitCode: 0 })

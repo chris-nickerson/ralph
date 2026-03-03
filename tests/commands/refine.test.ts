@@ -35,6 +35,7 @@ vi.mock("../../src/ui.js", () => ({
   SYM_CHECK: "done",
   line: () => "-".repeat(74),
   formatDuration: (s: number) => `${s}s`,
+  secondsSince: (start: number) => Math.max(0, Math.floor((Date.now() - start) / 1000)),
   printHeader: mocks.printHeader,
   printKv: mocks.printKv,
   printPhase: mocks.printPhase,
@@ -101,9 +102,9 @@ describe("runRefine", () => {
     expect(result).toEqual({ done: false, iterations: 3 });
 
     const phaseCalls = mocks.printPhase.mock.calls;
-    expect(phaseCalls[0]).toEqual([1, "investigate", undefined, expect.any(String)]);
-    expect(phaseCalls[1]).toEqual([2, "review", undefined, expect.any(String)]);
-    expect(phaseCalls[2]).toEqual([3, "investigate", undefined, expect.any(String)]);
+    expect(phaseCalls[0]).toEqual([1, "investigate", undefined, expect.any(Number)]);
+    expect(phaseCalls[1]).toEqual([2, "review", undefined, expect.any(Number)]);
+    expect(phaseCalls[2]).toEqual([3, "investigate", undefined, expect.any(Number)]);
 
     const promptCalls = mocks.loadRefinePrompt.mock.calls;
     expect(promptCalls[0][0]).toBe("investigate");
@@ -170,7 +171,7 @@ describe("runRefine", () => {
     const result = await promise;
     expect(result).toEqual({ done: false, iterations: 5 });
 
-    expect(mocks.printLimitReached).toHaveBeenCalledWith(5, "ralph", "refine", false, expect.any(String));
+    expect(mocks.printLimitReached).toHaveBeenCalledWith(5, "ralph", "refine", false, expect.any(Number));
   });
 
   it("respects max iterations", async () => {
@@ -185,7 +186,7 @@ describe("runRefine", () => {
 
     const result = await promise;
     expect(result).toEqual({ done: false, iterations: 2 });
-    expect(mocks.printLimitReached).toHaveBeenCalledWith(2, "ralph", "refine", false, expect.any(String));
+    expect(mocks.printLimitReached).toHaveBeenCalledWith(2, "ralph", "refine", false, expect.any(Number));
   });
 
   it("prints worktree next steps on limit reached", async () => {

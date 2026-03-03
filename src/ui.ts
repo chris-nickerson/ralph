@@ -28,6 +28,10 @@ export function line(): string {
   return "-".repeat(WIDTH);
 }
 
+export function secondsSince(start: number): number {
+  return Math.max(0, Math.floor((Date.now() - start) / 1000));
+}
+
 export function formatDuration(seconds: number): string {
   if (seconds < 60) {
     return `${seconds}s`;
@@ -58,13 +62,13 @@ export function printPhase(
   iteration: number,
   phase: string,
   detail?: string,
-  elapsed?: string,
+  elapsed?: number,
 ): void {
   console.log("");
   console.log(dim(line()));
   let msg = `  iteration ${iteration} ${dim(SYM_DOT)} ${phase}`;
   if (detail) msg += ` ${dim(SYM_DOT)} ${detail}`;
-  if (elapsed) msg += ` ${dim(SYM_DOT)} ${dim(elapsed)}`;
+  if (elapsed != null) msg += ` ${dim(SYM_DOT)} ${dim(formatDuration(elapsed))}`;
   console.log(msg);
   console.log("");
 }
@@ -73,23 +77,23 @@ export function printStep(
   step: number,
   label: string,
   detail?: string,
-  elapsed?: string,
+  elapsed?: number,
 ): void {
   console.log("");
   console.log(dim(line()));
   let msg = `  step ${step} ${dim(SYM_DOT)} ${label}`;
   if (detail) msg += ` ${dim(SYM_DOT)} ${detail}`;
-  if (elapsed) msg += ` ${dim(SYM_DOT)} ${dim(elapsed)}`;
+  if (elapsed != null) msg += ` ${dim(SYM_DOT)} ${dim(formatDuration(elapsed))}`;
   console.log(msg);
   console.log("");
 }
 
-export function printComplete(iterations: number, elapsed: string): void {
+export function printComplete(iterations: number, elapsed: number): void {
   const word = iterations === 1 ? "iteration" : "iterations";
   console.log("");
   console.log(dim(line()));
   console.log(
-    `  ${green(SYM_CHECK)} ${dim(SYM_DOT)} ${iterations} ${word} ${dim(SYM_DOT)} ${elapsed}`,
+    `  ${green(SYM_CHECK)} ${dim(SYM_DOT)} ${iterations} ${word} ${dim(SYM_DOT)} ${formatDuration(elapsed)}`,
   );
   console.log(dim(line()));
   console.log("");
@@ -111,12 +115,12 @@ export function printLimitReached(
   scriptName: string,
   mode: string,
   isWorktree: boolean,
-  elapsed?: string,
+  elapsed?: number,
 ): void {
   console.log("");
   console.log(dim(line()));
   let msg = `  ${yellow(SYM_PAUSE)} iteration limit reached (${max})`;
-  if (elapsed) msg += ` ${dim(SYM_DOT)} ${dim(elapsed)}`;
+  if (elapsed != null) msg += ` ${dim(SYM_DOT)} ${dim(formatDuration(elapsed))}`;
   console.log(msg);
   if (!isWorktree) {
     console.log(`  ${dim("Run")} ${scriptName} ${mode} ${dim("to continue")}`);

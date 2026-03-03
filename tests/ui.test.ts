@@ -9,7 +9,7 @@ vi.mock("node:readline", () => ({
   createInterface: mockReadline.createInterface,
 }));
 
-import { formatDuration, line, confirm, MultiSpinner, isUtf8, SPINNER_INTERVAL_MS, printPhase, printStep, printLimitReached, printTimingSummary } from "../src/ui.js";
+import { formatDuration, secondsSince, line, confirm, MultiSpinner, isUtf8, SPINNER_INTERVAL_MS, printPhase, printStep, printLimitReached, printTimingSummary } from "../src/ui.js";
 
 describe("line", () => {
   it("returns 74 dashes", () => {
@@ -80,7 +80,7 @@ describe("printPhase", () => {
   });
 
   it("prints with elapsed but no detail", () => {
-    printPhase(1, "review", undefined, "1m 30s");
+    printPhase(1, "review", undefined, 90);
     const output = consoleSpy.mock.calls.map((c) => String(c[0])).join("\n");
     expect(output).toContain("iteration 1");
     expect(output).toContain("review");
@@ -88,7 +88,7 @@ describe("printPhase", () => {
   });
 
   it("prints with both detail and elapsed", () => {
-    printPhase(2, "build", "2 tasks remaining", "45s");
+    printPhase(2, "build", "2 tasks remaining", 45);
     const output = consoleSpy.mock.calls.map((c) => String(c[0])).join("\n");
     expect(output).toContain("iteration 2");
     expect(output).toContain("build");
@@ -117,7 +117,7 @@ describe("printStep", () => {
   });
 
   it("prints with elapsed but no detail", () => {
-    printStep(2, "synthesis", undefined, "2m 15s");
+    printStep(2, "synthesis", undefined, 135);
     const output = consoleSpy.mock.calls.map((c) => String(c[0])).join("\n");
     expect(output).toContain("step 2");
     expect(output).toContain("synthesis");
@@ -125,7 +125,7 @@ describe("printStep", () => {
   });
 
   it("prints with both detail and elapsed", () => {
-    printStep(1, "specialists", "4 parallel reviews", "30s");
+    printStep(1, "specialists", "4 parallel reviews", 30);
     const output = consoleSpy.mock.calls.map((c) => String(c[0])).join("\n");
     expect(output).toContain("step 1");
     expect(output).toContain("specialists");
@@ -153,7 +153,7 @@ describe("printLimitReached", () => {
   });
 
   it("prints with elapsed", () => {
-    printLimitReached(10, "ralph", "build", false, "15m 30s");
+    printLimitReached(10, "ralph", "build", false, 930);
     const output = consoleSpy.mock.calls.map((c) => String(c[0])).join("\n");
     expect(output).toContain("iteration limit reached (10)");
     expect(output).toContain("15m 30s");

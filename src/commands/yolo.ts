@@ -7,6 +7,7 @@ import type { BuildResult } from "./build.js";
 import {
   dim,
   formatDuration,
+  secondsSince,
   green,
   line,
   printHeader,
@@ -47,7 +48,7 @@ export async function runYolo(
 
   const planResult = await runPlan(goal, config, options, worktreeInfo);
   if (planResult.status !== "created") {
-    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+    const elapsed = secondsSince(startTime);
     console.log(dim(`  ${formatDuration(elapsed)} total`));
     return { status: "plan_failed" };
   }
@@ -61,7 +62,7 @@ export async function runYolo(
 
   const result: BuildResult = await runBuild(10, config, options, worktreeInfo);
 
-  const elapsed = Math.floor((Date.now() - startTime) / 1000);
+  const elapsed = secondsSince(startTime);
   if (!isSuccessStatus(result.status)) {
     console.log(dim(`  ${formatDuration(elapsed)} total`));
     return { status: "build_failed" };

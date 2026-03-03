@@ -11,6 +11,7 @@ import {
   SYM_DOT,
   line,
   formatDuration,
+  secondsSince,
   printHeader,
   printKv,
   printPhase,
@@ -70,7 +71,7 @@ export async function runRefine(
     iteration++;
 
     if (iteration > maxIterations) {
-      const elapsed = formatDuration(Math.floor((Date.now() - startTime) / 1000));
+      const elapsed = secondsSince(startTime);
       printLimitReached(maxIterations, SCRIPT_NAME, "refine", !!worktreeInfo, elapsed);
       if (worktreeInfo) {
         printWorktreeNext("resume", worktreeInfo, SCRIPT_NAME, "refine");
@@ -78,7 +79,7 @@ export async function runRefine(
       return { done: false, iterations: iteration - 1 };
     }
 
-    printPhase(iteration, phase, undefined, formatDuration(Math.floor((Date.now() - startTime) / 1000)));
+    printPhase(iteration, phase, undefined, secondsSince(startTime));
 
     const iterStart = Date.now();
     const prompt = await loadRefinePrompt(phase);
@@ -89,9 +90,9 @@ export async function runRefine(
       phase,
     );
 
-    const iterElapsed = Math.floor((Date.now() - iterStart) / 1000);
+    const iterElapsed = secondsSince(iterStart);
     console.log("");
-    printTimingSummary(iterElapsed, Math.floor((Date.now() - startTime) / 1000));
+    printTimingSummary(iterElapsed, secondsSince(startTime));
 
     if (exitCode !== 0) {
       consecutiveFailures++;
@@ -113,7 +114,7 @@ export async function runRefine(
       );
 
       if (consecutiveReady >= 2) {
-        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        const elapsed = secondsSince(startTime);
         const iterWord = iteration === 1 ? "iteration" : "iterations";
 
         console.log("");

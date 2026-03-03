@@ -10,7 +10,7 @@ import {
   green,
   SYM_CHECK,
   line,
-  formatDuration,
+  secondsSince,
   printHeader,
   printKv,
   printPhase,
@@ -92,7 +92,7 @@ export async function runBuild(
     iteration++;
 
     if (iteration > maxIterations) {
-      const elapsed = formatDuration(Math.floor((Date.now() - startTime) / 1000));
+      const elapsed = secondsSince(startTime);
       printLimitReached(maxIterations, SCRIPT_NAME, "build", !!worktreeInfo, elapsed);
       if (worktreeInfo) {
         printWorktreeNext("resume", worktreeInfo, SCRIPT_NAME, "build");
@@ -102,7 +102,7 @@ export async function runBuild(
 
     const iterStart = Date.now();
 
-    const elapsed = formatDuration(Math.floor((Date.now() - startTime) / 1000));
+    const elapsed = secondsSince(startTime);
 
     taskCount = await countTasks();
     const taskWord = taskCount === 1 ? "task" : "tasks";
@@ -123,20 +123,20 @@ export async function runBuild(
     consecutiveFailures = 0;
 
     if (!options.noReview) {
-      printPhase(iteration, "review", undefined, formatDuration(Math.floor((Date.now() - startTime) / 1000)));
+      printPhase(iteration, "review", undefined, secondsSince(startTime));
 
       const reviewPrompt = await buildReviewPrompt(options.noCommit);
       await runAgent(reviewPrompt, config, options, "reviewing");
     }
 
-    const iterElapsed = Math.floor((Date.now() - iterStart) / 1000);
+    const iterElapsed = secondsSince(iterStart);
     console.log("");
-    printTimingSummary(iterElapsed, Math.floor((Date.now() - startTime) / 1000));
+    printTimingSummary(iterElapsed, secondsSince(startTime));
 
     taskCount = await countTasks();
     if (taskCount === 0) {
       if (!options.noReview) {
-        printPhase(iteration, "final review", undefined, formatDuration(Math.floor((Date.now() - startTime) / 1000)));
+        printPhase(iteration, "final review", undefined, secondsSince(startTime));
 
         const range = options.noCommit ? startHash : `${startHash}..HEAD`;
         const context: CodeReviewContext = {
@@ -156,15 +156,15 @@ export async function runBuild(
           await saveReview(reviewContent);
 
           if (needsRevision) {
-            printPhase(iteration, "fix", undefined, formatDuration(Math.floor((Date.now() - startTime) / 1000)));
+            printPhase(iteration, "fix", undefined, secondsSince(startTime));
             const fixPrompt = await buildFixPrompt(reviewContent, undefined, options.noCommit);
             await runAgent(fixPrompt, config, options, "fixing");
           }
         }
       }
 
-      const elapsed = Math.floor((Date.now() - startTime) / 1000);
-      printComplete(iteration, formatDuration(elapsed));
+      const totalSeconds = secondsSince(startTime);
+      printComplete(iteration, totalSeconds);
       if (worktreeInfo) {
         printWorktreeNext("merge", worktreeInfo, SCRIPT_NAME, "build");
       }

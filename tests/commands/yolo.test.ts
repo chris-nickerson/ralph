@@ -29,6 +29,7 @@ vi.mock("../../src/commands/build.js", async (importOriginal) => {
 vi.mock("../../src/ui.js", () => ({
   dim: (s: string) => s,
   formatDuration: (s: number) => `${s}s`,
+  secondsSince: (start: number) => Math.max(0, Math.floor((Date.now() - start) / 1000)),
   green: (s: string) => s,
   line: () => "-".repeat(74),
   printHeader: mocks.printHeader,

@@ -20,6 +20,7 @@ import { saveReview } from "../state.js";
 import {
   dim,
   formatDuration,
+  secondsSince,
   printHeader,
   printKv,
   printStep,
@@ -52,7 +53,7 @@ export async function runReviewPipeline(
   const pipelineStart = startTime ?? Date.now();
 
   // Phase 1: Specialists
-  let elapsed = formatDuration(Math.floor((Date.now() - pipelineStart) / 1000));
+  let elapsed = secondsSince(pipelineStart);
   printStep(1, "specialists", "4 parallel reviews", elapsed);
 
   let phaseStart = Date.now();
@@ -68,8 +69,8 @@ export async function runReviewPipeline(
 
   const results = await runAgentsParallel(tasks, config, options, SPECIALIST_COLORS);
 
-  let stepSeconds = Math.floor((Date.now() - phaseStart) / 1000);
-  let totalSeconds = Math.floor((Date.now() - pipelineStart) / 1000);
+  let stepSeconds = secondsSince(phaseStart);
+  let totalSeconds = secondsSince(pipelineStart);
   printTimingSummary(stepSeconds, totalSeconds);
 
   const successful = results.filter((r) => r.exitCode === 0 && r.output);
@@ -84,7 +85,7 @@ export async function runReviewPipeline(
   }
 
   // Phase 2: Synthesis
-  elapsed = formatDuration(Math.floor((Date.now() - pipelineStart) / 1000));
+  elapsed = secondsSince(pipelineStart);
   printStep(2, "synthesis", undefined, elapsed);
 
   phaseStart = Date.now();
@@ -97,8 +98,8 @@ export async function runReviewPipeline(
   const synthPrompt = await buildSynthesisPrompt(specialistOutputs, context);
   const synthResult = await runAgent(synthPrompt, config, options, "synthesizing", true);
 
-  stepSeconds = Math.floor((Date.now() - phaseStart) / 1000);
-  totalSeconds = Math.floor((Date.now() - pipelineStart) / 1000);
+  stepSeconds = secondsSince(phaseStart);
+  totalSeconds = secondsSince(pipelineStart);
   printTimingSummary(stepSeconds, totalSeconds);
 
   if (synthResult.exitCode !== 0 || !synthResult.output) {
@@ -114,7 +115,7 @@ export async function runReviewPipeline(
   const synthesizedReview = synthResult.output;
 
   // Phase 3: Verification
-  elapsed = formatDuration(Math.floor((Date.now() - pipelineStart) / 1000));
+  elapsed = secondsSince(pipelineStart);
   printStep(3, "verification", undefined, elapsed);
 
   phaseStart = Date.now();
@@ -122,8 +123,8 @@ export async function runReviewPipeline(
   const verifyPrompt = await buildVerificationPrompt(synthesizedReview, context);
   const verifyResult = await runAgent(verifyPrompt, config, options, "verifying");
 
-  stepSeconds = Math.floor((Date.now() - phaseStart) / 1000);
-  totalSeconds = Math.floor((Date.now() - pipelineStart) / 1000);
+  stepSeconds = secondsSince(phaseStart);
+  totalSeconds = secondsSince(pipelineStart);
   printTimingSummary(stepSeconds, totalSeconds);
 
   if (verifyResult.exitCode !== 0 || !verifyResult.output) {
@@ -197,7 +198,7 @@ export async function runReview(
   await saveReview(reviewContent);
   printKv("next", "ralph fix");
 
-  const elapsed = Math.floor((Date.now() - startTime) / 1000);
+  const elapsed = secondsSince(startTime);
   console.log("");
   console.log(dim(`  completed in ${formatDuration(elapsed)}`));
 
