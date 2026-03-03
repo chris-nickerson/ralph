@@ -14,6 +14,7 @@ import {
   printHeader,
   printKv,
   printPhase,
+  printTimingSummary,
   printLimitReached,
   printWorktreeNext,
   printError,
@@ -69,14 +70,15 @@ export async function runRefine(
     iteration++;
 
     if (iteration > maxIterations) {
-      printLimitReached(maxIterations, SCRIPT_NAME, "refine", !!worktreeInfo);
+      const elapsed = formatDuration(Math.floor((Date.now() - startTime) / 1000));
+      printLimitReached(maxIterations, SCRIPT_NAME, "refine", !!worktreeInfo, elapsed);
       if (worktreeInfo) {
         printWorktreeNext("resume", worktreeInfo, SCRIPT_NAME, "refine");
       }
       return { done: false, iterations: iteration - 1 };
     }
 
-    printPhase(iteration, phase);
+    printPhase(iteration, phase, undefined, formatDuration(Math.floor((Date.now() - startTime) / 1000)));
 
     const iterStart = Date.now();
     const prompt = await loadRefinePrompt(phase);
@@ -89,7 +91,7 @@ export async function runRefine(
 
     const iterElapsed = Math.floor((Date.now() - iterStart) / 1000);
     console.log("");
-    console.log(`${dim(`  iteration elapsed: ${formatDuration(iterElapsed)}`)}`);
+    printTimingSummary(iterElapsed, Math.floor((Date.now() - startTime) / 1000));
 
     if (exitCode !== 0) {
       consecutiveFailures++;

@@ -15,6 +15,7 @@ import {
   printKv,
   printPhase,
   printComplete,
+  printTimingSummary,
   printLimitReached,
   printWorktreeNext,
   printError,
@@ -91,7 +92,8 @@ export async function runBuild(
     iteration++;
 
     if (iteration > maxIterations) {
-      printLimitReached(maxIterations, SCRIPT_NAME, "build", !!worktreeInfo);
+      const elapsed = formatDuration(Math.floor((Date.now() - startTime) / 1000));
+      printLimitReached(maxIterations, SCRIPT_NAME, "build", !!worktreeInfo, elapsed);
       if (worktreeInfo) {
         printWorktreeNext("resume", worktreeInfo, SCRIPT_NAME, "build");
       }
@@ -100,9 +102,11 @@ export async function runBuild(
 
     const iterStart = Date.now();
 
+    const elapsed = formatDuration(Math.floor((Date.now() - startTime) / 1000));
+
     taskCount = await countTasks();
     const taskWord = taskCount === 1 ? "task" : "tasks";
-    printPhase(iteration, "build", `${taskCount} ${taskWord} remaining`);
+    printPhase(iteration, "build", `${taskCount} ${taskWord} remaining`, elapsed);
 
     const buildPrompt = await buildBuildPrompt(options.noReview, options.noCommit);
     const { exitCode } = await runAgent(buildPrompt, config, options, "building");
@@ -119,7 +123,7 @@ export async function runBuild(
     consecutiveFailures = 0;
 
     if (!options.noReview) {
-      printPhase(iteration, "review");
+      printPhase(iteration, "review", undefined, formatDuration(Math.floor((Date.now() - startTime) / 1000)));
 
       const reviewPrompt = await buildReviewPrompt(options.noCommit);
       await runAgent(reviewPrompt, config, options, "reviewing");
@@ -127,12 +131,12 @@ export async function runBuild(
 
     const iterElapsed = Math.floor((Date.now() - iterStart) / 1000);
     console.log("");
-    console.log(`${dim(`  iteration elapsed: ${formatDuration(iterElapsed)}`)}`);
+    printTimingSummary(iterElapsed, Math.floor((Date.now() - startTime) / 1000));
 
     taskCount = await countTasks();
     if (taskCount === 0) {
       if (!options.noReview) {
-        printPhase(iteration, "final review");
+        printPhase(iteration, "final review", undefined, formatDuration(Math.floor((Date.now() - startTime) / 1000)));
 
         const range = options.noCommit ? startHash : `${startHash}..HEAD`;
         const context: CodeReviewContext = {
@@ -152,7 +156,7 @@ export async function runBuild(
           await saveReview(reviewContent);
 
           if (needsRevision) {
-            printPhase(iteration, "fix");
+            printPhase(iteration, "fix", undefined, formatDuration(Math.floor((Date.now() - startTime) / 1000)));
             const fixPrompt = await buildFixPrompt(reviewContent, undefined, options.noCommit);
             await runAgent(fixPrompt, config, options, "fixing");
           }

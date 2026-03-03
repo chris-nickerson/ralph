@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
   printKv: vi.fn(),
   printPhase: vi.fn(),
   printComplete: vi.fn(),
+  printTimingSummary: vi.fn(),
   printLimitReached: vi.fn(),
   printWorktreeNext: vi.fn(),
   printError: vi.fn(),
@@ -61,6 +62,7 @@ vi.mock("../../src/ui.js", () => ({
   printKv: mocks.printKv,
   printPhase: mocks.printPhase,
   printComplete: mocks.printComplete,
+  printTimingSummary: mocks.printTimingSummary,
   printLimitReached: mocks.printLimitReached,
   printWorktreeNext: mocks.printWorktreeNext,
   printError: mocks.printError,
@@ -140,8 +142,9 @@ describe("runBuild", () => {
     expect(mocks.buildReviewPrompt).toHaveBeenCalledWith(false);
     expect(mocks.runAgent).toHaveBeenCalledTimes(2);
 
-    expect(mocks.printPhase).toHaveBeenCalledWith(1, "build", "2 tasks remaining");
-    expect(mocks.printPhase).toHaveBeenCalledWith(1, "review");
+    expect(mocks.printPhase).toHaveBeenCalledWith(1, "build", "2 tasks remaining", expect.any(String));
+    expect(mocks.printPhase).toHaveBeenCalledWith(1, "review", undefined, expect.any(String));
+    expect(mocks.printTimingSummary).toHaveBeenCalledWith(expect.any(Number), expect.any(Number));
   });
 
   it("skips review with --no-review", async () => {
@@ -251,7 +254,7 @@ describe("runBuild", () => {
 
     expect(mocks.buildFixPrompt).toHaveBeenCalledWith("NEEDS REVISION found", undefined, false);
     expect(mocks.runAgent).toHaveBeenCalledWith("fix prompt", agentConfig, defaultOptions, "fixing");
-    expect(mocks.printPhase).toHaveBeenCalledWith(1, "fix");
+    expect(mocks.printPhase).toHaveBeenCalledWith(1, "fix", undefined, expect.any(String));
   });
 
   it("does not run fix agent when needsRevision is false", async () => {
@@ -321,7 +324,7 @@ describe("runBuild", () => {
 
     const result = await promise;
     expect(result).toEqual({ status: "limit_reached", iterations: 2 });
-    expect(mocks.printLimitReached).toHaveBeenCalledWith(2, "ralph", "build", false);
+    expect(mocks.printLimitReached).toHaveBeenCalledWith(2, "ralph", "build", false, expect.any(String));
   });
 
   it("prints worktree next steps on completion", async () => {
