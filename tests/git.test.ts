@@ -204,6 +204,25 @@ describe("parseReviewTarget", () => {
     expect(parseReviewTarget([], { staged: true })).toEqual({ type: "staged" });
   });
 
+  it("returns working_all when working flag is set", async () => {
+    const { parseReviewTarget } = await import("../src/git.js");
+    expect(parseReviewTarget([], { staged: false, working: true })).toEqual({ type: "working_all" });
+  });
+
+  it("throws when staged and working flags are both set", async () => {
+    const { parseReviewTarget } = await import("../src/git.js");
+    expect(() => parseReviewTarget([], { staged: true, working: true })).toThrow(
+      "--staged and --working cannot be combined",
+    );
+  });
+
+  it("throws when working flag used with positional args", async () => {
+    const { parseReviewTarget } = await import("../src/git.js");
+    expect(() => parseReviewTarget(["main"], { staged: false, working: true })).toThrow(
+      "--working cannot be combined with a positional target",
+    );
+  });
+
   it("throws when staged flag used with positional args", async () => {
     const { parseReviewTarget } = await import("../src/git.js");
     expect(() => parseReviewTarget(["main"], { staged: true })).toThrow(
@@ -388,6 +407,21 @@ describe("resolveReviewTarget", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it("returns working diff for working_all target", async () => {
+    vi.doMock("node:child_process", () => ({
+      execFile: mockExecFile(() => ({ stdout: "", stderr: "" })),
+    }));
+
+    const { resolveReviewTarget } = await import("../src/git.js");
+    const result = await resolveReviewTarget({ type: "working_all" });
+    expect(result).toEqual({
+      diffCmd: "git diff HEAD",
+      scope: "working",
+      range: "HEAD",
+      description: "working tree (staged + unstaged + untracked)",
+    });
   });
 
   it("returns staged diff for staged target", async () => {

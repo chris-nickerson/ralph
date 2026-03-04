@@ -9,6 +9,9 @@ const mocks = vi.hoisted(() => ({
   getCurrentBranch: vi.fn(),
   getDiffStat: vi.fn(),
   getCommitLog: vi.fn(),
+  getUntrackedFiles: vi.fn(),
+  intentToAdd: vi.fn(),
+  resetFiles: vi.fn(),
   buildSpecialistPrompt: vi.fn(),
   buildSynthesisPrompt: vi.fn(),
   buildVerificationPrompt: vi.fn(),
@@ -31,6 +34,9 @@ vi.mock("../../src/git.js", () => ({
   getCurrentBranch: mocks.getCurrentBranch,
   getDiffStat: mocks.getDiffStat,
   getCommitLog: mocks.getCommitLog,
+  getUntrackedFiles: mocks.getUntrackedFiles,
+  intentToAdd: mocks.intentToAdd,
+  resetFiles: mocks.resetFiles,
 }));
 
 vi.mock("../../src/prompt.js", () => ({
@@ -100,6 +106,9 @@ function setupDefaults() {
     .mockResolvedValueOnce({ output: "synthesized review", exitCode: 0 })
     .mockResolvedValueOnce({ output: "final report\n<signal>APPROVED</signal>", exitCode: 0 });
 
+  mocks.getUntrackedFiles.mockResolvedValue([]);
+  mocks.intentToAdd.mockResolvedValue(undefined);
+  mocks.resetFiles.mockResolvedValue(undefined);
   mocks.saveReview.mockResolvedValue(undefined);
 }
 
@@ -287,6 +296,69 @@ describe("runReview", () => {
       "\n--- Security & Perf ---\nreview 4";
     expect(mocks.saveReview).toHaveBeenCalledWith(expected);
     expect(mocks.printKv).toHaveBeenCalledWith("next", "ralph fix");
+  });
+
+  it("runs intent-to-add for untracked files with --working target", async () => {
+    mocks.getUntrackedFiles.mockResolvedValue(["new-file.ts", "other.ts"]);
+    mocks.resolveReviewTarget.mockResolvedValue({
+      diffCmd: "git diff HEAD",
+      scope: "working",
+      range: "HEAD",
+      description: "working tree (staged + unstaged + untracked)",
+    });
+
+    await runReview(agentConfig, defaultOptions, { type: "working_all" });
+
+    expect(mocks.getUntrackedFiles).toHaveBeenCalled();
+    expect(mocks.intentToAdd).toHaveBeenCalledWith(["new-file.ts", "other.ts"]);
+    expect(mocks.resetFiles).toHaveBeenCalledWith(["new-file.ts", "other.ts"]);
+  });
+
+  it("resets intent-to-add files on empty diff early return", async () => {
+    mocks.getUntrackedFiles.mockResolvedValue(["new-file.ts"]);
+    mocks.resolveReviewTarget.mockResolvedValue({
+      diffCmd: "git diff HEAD",
+      scope: "working",
+      range: "HEAD",
+      description: "working tree (staged + unstaged + untracked)",
+    });
+    mocks.isDiffEmpty.mockResolvedValue(true);
+
+    await runReview(agentConfig, defaultOptions, { type: "working_all" });
+
+    expect(mocks.resetFiles).toHaveBeenCalledWith(["new-file.ts"]);
+  });
+
+  it("resets intent-to-add files when inner review throws", async () => {
+    mocks.getUntrackedFiles.mockResolvedValue(["new-file.ts"]);
+    mocks.resolveReviewTarget.mockRejectedValue(new Error("git exploded"));
+
+    await expect(
+      runReview(agentConfig, defaultOptions, { type: "working_all" }),
+    ).rejects.toThrow("git exploded");
+
+    expect(mocks.intentToAdd).toHaveBeenCalledWith(["new-file.ts"]);
+    expect(mocks.resetFiles).toHaveBeenCalledWith(["new-file.ts"]);
+  });
+
+  it("skips intent-to-add when no untracked files with --working", async () => {
+    mocks.getUntrackedFiles.mockResolvedValue([]);
+    mocks.resolveReviewTarget.mockResolvedValue({
+      diffCmd: "git diff HEAD",
+      scope: "working",
+      range: "HEAD",
+      description: "working tree (staged + unstaged + untracked)",
+    });
+
+    await runReview(agentConfig, defaultOptions, { type: "working_all" });
+
+    expect(mocks.intentToAdd).not.toHaveBeenCalled();
+    expect(mocks.resetFiles).not.toHaveBeenCalled();
+  });
+
+  it("does not call getUntrackedFiles for non-working targets", async () => {
+    await runReview(agentConfig, defaultOptions, { type: "auto" });
+    expect(mocks.getUntrackedFiles).not.toHaveBeenCalled();
   });
 });
 

@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import pc from "picocolors";
 import { runAgent, runAgentsParallel } from "../agent.js";
 import type { AgentConfig, RalphOptions } from "../agent.js";
@@ -7,6 +8,9 @@ import {
   getCurrentBranch,
   getDiffStat,
   getCommitLog,
+  getUntrackedFiles,
+  intentToAdd,
+  resetFiles,
 } from "../git.js";
 import type { ReviewTarget } from "../git.js";
 import {
@@ -142,6 +146,40 @@ export async function runReview(
   config: AgentConfig,
   options: RalphOptions,
   target: ReviewTarget = { type: "auto" },
+): Promise<ReviewResult> {
+  let trackedNewFiles: string[] = [];
+  let exitHandler: (() => void) | undefined;
+
+  if (target.type === "working_all") {
+    trackedNewFiles = await getUntrackedFiles();
+    if (trackedNewFiles.length > 0) {
+      await intentToAdd(trackedNewFiles);
+      const files = trackedNewFiles;
+      exitHandler = () => {
+        try { execFileSync("git", ["reset", "--", ...files]); } catch {}
+      };
+      process.on("exit", exitHandler);
+    }
+  }
+
+  try {
+    return await runReviewInner(config, options, target);
+  } finally {
+    if (trackedNewFiles.length > 0) {
+      try {
+        await resetFiles(trackedNewFiles);
+      } catch {}
+    }
+    if (exitHandler) {
+      process.removeListener("exit", exitHandler);
+    }
+  }
+}
+
+async function runReviewInner(
+  config: AgentConfig,
+  options: RalphOptions,
+  target: ReviewTarget,
 ): Promise<ReviewResult> {
   const { diffCmd, scope, range, description } = await resolveReviewTarget(target);
 

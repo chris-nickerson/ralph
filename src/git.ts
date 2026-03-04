@@ -13,6 +13,7 @@ const git = (...args: string[]) =>
 export type ReviewTarget =
   | { type: "auto" }
   | { type: "staged" }
+  | { type: "working_all" }
   | { type: "range"; range: string }
   | { type: "ref"; ref: string }
   | { type: "commit"; ref: string };
@@ -26,14 +27,24 @@ export interface DiffScope {
 
 export function parseReviewTarget(
   args: string[],
-  flags: { staged: boolean },
+  flags: { staged: boolean; working?: boolean },
 ): ReviewTarget {
+  if (flags.staged && flags.working) {
+    throw new Error("--staged and --working cannot be combined");
+  }
   if (flags.staged && args.length > 0) {
     throw new Error("--staged cannot be combined with a positional target");
+  }
+  if (flags.working && args.length > 0) {
+    throw new Error("--working cannot be combined with a positional target");
   }
 
   if (flags.staged) {
     return { type: "staged" };
+  }
+
+  if (flags.working) {
+    return { type: "working_all" };
   }
 
   if (args.length === 0) {
@@ -99,6 +110,15 @@ export async function resolveReviewTarget(
       scope: "working",
       range: "--cached",
       description: "staged changes",
+    };
+  }
+
+  if (target.type === "working_all") {
+    return {
+      diffCmd: "git diff HEAD",
+      scope: "working",
+      range: "HEAD",
+      description: "working tree (staged + unstaged + untracked)",
     };
   }
 
@@ -264,6 +284,21 @@ export async function isDiffEmpty(range: string): Promise<boolean> {
     if (code === 1) return false;
     throw err;
   }
+}
+
+export async function getUntrackedFiles(): Promise<string[]> {
+  const { stdout } = await git("ls-files", "--others", "--exclude-standard");
+  return stdout.trim().split("\n").filter(Boolean);
+}
+
+export async function intentToAdd(files: string[]): Promise<void> {
+  if (files.length === 0) return;
+  await git("add", "--intent-to-add", "--", ...files);
+}
+
+export async function resetFiles(files: string[]): Promise<void> {
+  if (files.length === 0) return;
+  await git("reset", "--", ...files);
 }
 
 async function remoteRefExists(ref: string): Promise<boolean> {

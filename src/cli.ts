@@ -134,6 +134,7 @@ program
   .command("review [target]")
   .description("Parallel code review with specialist agents")
   .option("-s, --staged", "Review staged changes only")
+  .option("-W, --working", "Review working tree (staged + unstaged + untracked)")
   .action(async (target: string | undefined, cmdOpts) => {
     const options = makeOptions(program);
     const config = validateAgent(options.agent);
@@ -142,7 +143,7 @@ program
     const { parseReviewTarget } = await import("./git.js");
     const reviewTarget = parseReviewTarget(
       [target].filter(Boolean) as string[],
-      { staged: cmdOpts.staged ?? false },
+      { staged: cmdOpts.staged ?? false, working: cmdOpts.working ?? false },
     );
     const result = await runReview(config, options, reviewTarget);
     if (result.status !== "completed") process.exit(1);

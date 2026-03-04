@@ -45,6 +45,7 @@ ralph review              # Parallel code review (auto-detects diff scope)
 ralph review main         # Review changes since main
 ralph review HEAD~3       # Review last 3 commits
 ralph review --staged     # Review staged changes only
+ralph review --working    # Review working tree (staged + unstaged + untracked)
 ralph review abc123^!     # Review a single commit
 ralph review abc..def     # Explicit two-dot range
 ralph fix                 # Fix issues from the last review
