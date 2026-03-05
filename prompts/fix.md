@@ -21,7 +21,9 @@ After fixing and validating:
 ```bash
 git add -A
 git reset HEAD -- progress.txt IMPLEMENTATION_PLAN.md GOAL.md REVIEW.md 2>/dev/null || true
-git commit -m "fix: address code review findings"
+git commit -m "fix: description of what was fixed"
 ```
 
-**Do NOT add co-author lines** or AI attribution to the commit message.
+Write a specific commit message that describes what you actually changed (e.g. "fix: guard against null user in auth middleware", "fix: correct off-by-one in pagination query"). Do NOT use generic messages like "address code review findings".
+
+Do NOT add co-author lines or AI attribution to the commit message.
