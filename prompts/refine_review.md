@@ -20,6 +20,7 @@ Assess the plan as a senior engineer would before greenlighting implementation:
 
 ## Rules
 
+- **No sub-agents** — do not spawn child agents, background agents, or delegate to sub-tasks. Do all work directly in this session.
 - **Prefer removal over addition** — if something is unnecessary, remove it
 - **Simplify** — do not make the plan longer for the sake of it
 - **Do NOT implement anything** — only update the plan document

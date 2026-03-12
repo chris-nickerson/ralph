@@ -1,6 +1,6 @@
 You are in BUILD mode. Implement one task from the plan.
 
-This runs in a loop — each invocation handles one task. Focus on correct, working code.
+This runs in a loop — each invocation handles one task. Focus on correct, working code. Do not spawn sub-agents, child agents, or background agents — do all work directly in this session.
 
 ## Context Loading
 

@@ -1,4 +1,4 @@
-You are in FIX mode. Your task is to fix issues identified in the embedded verified code review.
+You are in FIX mode. Your task is to fix issues identified in the embedded verified code review. Do not spawn sub-agents, child agents, or background agents — do all work directly in this session.
 
 ## What to Fix
 

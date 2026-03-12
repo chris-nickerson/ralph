@@ -22,6 +22,7 @@ A separate build agent executes each task in isolation with no memory between ta
 
 ## Rules
 
+- **No sub-agents** — do not spawn child agents, background agents, or delegate to sub-tasks. Do all work directly in this session.
 - **Verify by searching, not by assuming** — navigate to file paths, read referenced code, confirm patterns exist
 - **Do NOT make the plan longer for the sake of it** — fix inaccuracies, don't add padding
 - **Do NOT implement anything** — only update the plan document

@@ -31,6 +31,7 @@ Goal: [one-line summary]
 
 ## Rules
 
+- **No sub-agents** — do not spawn child agents, background agents, or delegate to sub-tasks. Do all work directly in this session.
 - **PLAN ONLY** — do not implement anything
 - **Self-sufficient plan** — a separate build agent implements tasks one at a time. It cannot see the original goal and has no memory between tasks. Each task description must say what to build and how it should behave, not just name it. Put shared context in Specifications; individual tasks reference it.
 - **Right-sized tasks** — each task should be a coherent unit of work: one feature, one module, one meaningful change. Too granular (adding a single import) wastes iterations. Too large (building an entire subsystem) overwhelms a single invocation.
