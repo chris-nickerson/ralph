@@ -41,9 +41,10 @@ const SPECIALIST_LABELS = [
   "Code Quality",
   "Test Quality",
   "Security & Perf",
+  "Simplification",
 ] as const;
 
-const SPECIALIST_COLORS = [pc.cyan, pc.green, pc.magenta, pc.yellow];
+const SPECIALIST_COLORS = [pc.cyan, pc.green, pc.magenta, pc.yellow, pc.blue];
 
 export interface ReviewPipelineResult {
   reviewContent: string | undefined;
@@ -60,10 +61,10 @@ export async function runReviewPipeline(
   const pipelineStart = startTime ?? Date.now();
 
   // Phase 1: Specialists
-  printStep(1, "specialists", "4 parallel reviews");
+  printStep(1, "specialists", "5 parallel reviews");
 
   const specialistPrompts = await Promise.all(
-    ([1, 2, 3, 4] as const).map((i) => buildSpecialistPrompt(i, context)),
+    ([1, 2, 3, 4, 5] as const).map((i) => buildSpecialistPrompt(i, context)),
   );
 
   const tasks = specialistPrompts.map((prompt, i) => ({

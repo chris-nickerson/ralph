@@ -194,7 +194,7 @@ describe("buildSynthesisPrompt", () => {
 
   it("loads the synthesis prompt file", async () => {
     const prompt = await buildSynthesisPrompt(outputs, branchContext);
-    expect(prompt).toContain("synthesizing 4 specialist code reviews");
+    expect(prompt).toContain("synthesizing 5 specialist code reviews");
   });
 
   it("includes review info with scope and branch", async () => {

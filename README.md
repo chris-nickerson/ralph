@@ -79,7 +79,7 @@ ralph build -a cursor
 2. **Refine mode** iteratively improves the plan by alternating between investigation (searches the codebase for gaps and ambiguities in the plan) and review (staff-level assessment of plan quality). Exits automatically when both phases consecutively signal the plan is ready
 3. **Build mode** implements one task per iteration: the build agent reads the plan, implements the next task, validates, and commits. A final comprehensive review runs after all tasks complete
 4. Build exits when all tasks are complete or max iterations reached
-5. **Review mode** runs a standalone 3-phase code review pipeline: 4 specialist agents review in parallel (correctness, code quality, test quality, security & perf), a synthesis agent merges and deduplicates findings, and a verification agent checks the final report against the actual diff. Auto-detects whether to diff the branch against origin or the working tree. Saves the review to `REVIEW.md`
+5. **Review mode** runs a standalone 3-phase code review pipeline: 5 specialist agents review in parallel (correctness, code quality, test quality, security & perf, simplification), a synthesis agent merges and deduplicates findings, and a verification agent checks the final report against the actual diff. Auto-detects whether to diff the branch against origin or the working tree. Saves the review to `REVIEW.md`
 6. **Fix mode** loads the saved review from `REVIEW.md` and runs an agent to address the findings. Accepts optional instructions to focus the fix
 
 Use `--no-review` to skip the final code review. Use `--no-commit` to leave all changes in the working tree.
@@ -93,7 +93,7 @@ Use `--no-review` to skip the final code review. Use `--no-commit` to leave all 
 | `prompts/refine_investigate.md` | Refine investigation prompt |
 | `prompts/refine_review.md` | Refine review prompt |
 | `prompts/build.md` | Build prompt (implement task) |
-| `prompts/cr_specialist_*.md` | Standalone review specialist prompts (1–4) |
+| `prompts/cr_specialist_*.md` | Standalone review specialist prompts (1–5) |
 | `prompts/cr_synthesize.md` | Review synthesis prompt |
 | `prompts/cr_verify.md` | Review verification prompt |
 | `prompts/fix.md` | Fix prompt (address review findings) |

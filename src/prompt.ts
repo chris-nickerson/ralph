@@ -86,7 +86,7 @@ export interface CodeReviewContext {
 }
 
 export async function buildSpecialistPrompt(
-  index: 1 | 2 | 3 | 4,
+  index: 1 | 2 | 3 | 4 | 5,
   context: CodeReviewContext,
 ): Promise<string> {
   let prompt = await loadPrompt(`cr_specialist_${index}.md`);

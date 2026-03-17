@@ -100,6 +100,7 @@ function setupDefaults() {
     { output: "review 2", exitCode: 0, label: "Code Quality" },
     { output: "review 3", exitCode: 0, label: "Test Quality" },
     { output: "review 4", exitCode: 0, label: "Security & Perf" },
+    { output: "review 5", exitCode: 0, label: "Simplification" },
   ]);
 
   mocks.runAgent
@@ -145,7 +146,7 @@ describe("runReview", () => {
     const result = await runReview(agentConfig, defaultOptions);
 
     expect(result).toEqual({ status: "completed" });
-    expect(mocks.printStep).toHaveBeenCalledWith(1, "specialists", "4 parallel reviews");
+    expect(mocks.printStep).toHaveBeenCalledWith(1, "specialists", "5 parallel reviews");
     expect(mocks.runAgentsParallel).toHaveBeenCalledTimes(1);
 
     expect(mocks.printStep).toHaveBeenCalledWith(2, "synthesis");
@@ -153,14 +154,15 @@ describe("runReview", () => {
     expect(mocks.runAgent).toHaveBeenCalledTimes(2);
   });
 
-  it("builds 4 specialist prompts with correct indices", async () => {
+  it("builds 5 specialist prompts with correct indices", async () => {
     await runReview(agentConfig, defaultOptions);
 
-    expect(mocks.buildSpecialistPrompt).toHaveBeenCalledTimes(4);
+    expect(mocks.buildSpecialistPrompt).toHaveBeenCalledTimes(5);
     expect(mocks.buildSpecialistPrompt).toHaveBeenCalledWith(1, expect.any(Object));
     expect(mocks.buildSpecialistPrompt).toHaveBeenCalledWith(2, expect.any(Object));
     expect(mocks.buildSpecialistPrompt).toHaveBeenCalledWith(3, expect.any(Object));
     expect(mocks.buildSpecialistPrompt).toHaveBeenCalledWith(4, expect.any(Object));
+    expect(mocks.buildSpecialistPrompt).toHaveBeenCalledWith(5, expect.any(Object));
   });
 
   it("passes silent=true for synthesis agent", async () => {
@@ -187,6 +189,7 @@ describe("runReview", () => {
       { output: "", exitCode: 1, label: "Code Quality" },
       { output: "", exitCode: 1, label: "Test Quality" },
       { output: "", exitCode: 1, label: "Security & Perf" },
+      { output: "", exitCode: 1, label: "Simplification" },
     ]);
 
     const result = await runReview(agentConfig, defaultOptions);
@@ -201,6 +204,7 @@ describe("runReview", () => {
       { output: "", exitCode: 1, label: "Code Quality" },
       { output: "review 3", exitCode: 0, label: "Test Quality" },
       { output: "", exitCode: 1, label: "Security & Perf" },
+      { output: "review 5", exitCode: 0, label: "Simplification" },
     ]);
 
     await runReview(agentConfig, defaultOptions);
@@ -209,9 +213,10 @@ describe("runReview", () => {
     expect(mocks.printWarning).toHaveBeenCalledWith('specialist "Security & Perf" failed');
 
     const synthCall = mocks.buildSynthesisPrompt.mock.calls[0];
-    expect(synthCall[0]).toHaveLength(2);
+    expect(synthCall[0]).toHaveLength(3);
     expect(synthCall[0][0].label).toBe("Correctness");
     expect(synthCall[0][1].label).toBe("Test Quality");
+    expect(synthCall[0][2].label).toBe("Simplification");
   });
 
   it("falls back to specialist outputs when synthesis fails", async () => {
@@ -293,7 +298,8 @@ describe("runReview", () => {
       "\n--- Correctness ---\nreview 1" +
       "\n--- Code Quality ---\nreview 2" +
       "\n--- Test Quality ---\nreview 3" +
-      "\n--- Security & Perf ---\nreview 4";
+      "\n--- Security & Perf ---\nreview 4" +
+      "\n--- Simplification ---\nreview 5";
     expect(mocks.saveReview).toHaveBeenCalledWith(expected);
     expect(mocks.printKv).toHaveBeenCalledWith("next", "ralph fix");
   });
@@ -387,6 +393,7 @@ describe("runReviewPipeline", () => {
       { output: "review 2", exitCode: 0, label: "Code Quality" },
       { output: "review 3", exitCode: 0, label: "Test Quality" },
       { output: "review 4", exitCode: 0, label: "Security & Perf" },
+      { output: "review 5", exitCode: 0, label: "Simplification" },
     ]);
 
     mocks.runAgent
@@ -411,6 +418,7 @@ describe("runReviewPipeline", () => {
       { output: "", exitCode: 1, label: "Code Quality" },
       { output: "", exitCode: 1, label: "Test Quality" },
       { output: "", exitCode: 1, label: "Security & Perf" },
+      { output: "", exitCode: 1, label: "Simplification" },
     ]);
 
     const result = await runReviewPipeline(mockContext, agentConfig, defaultOptions);
@@ -430,7 +438,8 @@ describe("runReviewPipeline", () => {
       "\n--- Correctness ---\nreview 1" +
       "\n--- Code Quality ---\nreview 2" +
       "\n--- Test Quality ---\nreview 3" +
-      "\n--- Security & Perf ---\nreview 4";
+      "\n--- Security & Perf ---\nreview 4" +
+      "\n--- Simplification ---\nreview 5";
     expect(result.reviewContent).toBe(expected);
     expect(result.fallback).toBe(true);
   });
@@ -490,6 +499,7 @@ describe("runReviewPipeline", () => {
       { output: "looks fine", exitCode: 0, label: "Code Quality" },
       { output: "ok", exitCode: 0, label: "Test Quality" },
       { output: "ok", exitCode: 0, label: "Security & Perf" },
+      { output: "ok", exitCode: 0, label: "Simplification" },
     ]);
 
     const result = await runReviewPipeline(mockContext, agentConfig, defaultOptions);
