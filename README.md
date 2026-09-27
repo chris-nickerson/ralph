@@ -39,9 +39,9 @@ ralph review RUN_ID
 ralph babysit RUN_ID
 ```
 
-Run state and evidence live in the repository's git-ignored `.ralph/runs/` directory. Ralph records the Codex session ID, phase evidence, last response, and event log. It does not erase runs on cleanup or silently restart a failed external write. Read `workflow-state.md` before resuming a blocked run.
+Active run state and evidence live in the repository's git-ignored `.ralph/runs/` directory. After a run completes, Ralph moves only that run into Git's private `ralph/archives/` directory outside the checkout. `status` and `list` can still find it, and `resume` restores it before continuing. Blocked and pending runs remain in place. Ralph records session IDs, phase evidence, last responses, and event logs. It does not erase runs or silently replay a failed external write. Read `workflow-state.md` before resuming a blocked run.
 
-`plan` is the standalone two-model consensus command. `simplify`, `review`, and `babysit` focus an existing run on that phase after checking its prerequisites; they retain the same session, evidence, and attempt budgets. Claude availability is required for planning and simplification, so a quota limit leaves the run resumable.
+`plan` is the standalone two-model consensus command. `simplify`, `review`, and `babysit` focus an existing run on that phase after the CLI checks required phase evidence; they retain the same session and attempt budgets. Ralph's `partner` command makes restricted, recorded Claude calls for the orchestrator. A quota limit leaves the run resumable, and a failed first Codex launch can restart from its saved evidence.
 
 ## Workflow
 
