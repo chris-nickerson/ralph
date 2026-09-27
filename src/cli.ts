@@ -1,214 +1,116 @@
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { Command } from "commander";
-import { killAgent, validateAgent, checkAgentInstalled } from "./agent.js";
-import type { RalphOptions } from "./agent.js";
-import { createWorktree, getRepoRoot } from "./git.js";
-import type { WorktreeInfo } from "./git.js";
-import { dim, printError, printWarning } from "./ui.js";
-
-process.title = "ralph";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const pkg = JSON.parse(
-  readFileSync(join(__dirname, "..", "package.json"), "utf-8"),
-);
-
-let worktreeInfo: WorktreeInfo | undefined;
-let worktreeDone = false;
-
-function onSignal(): void {
-  killAgent();
-  process.stdout.write("\x1b[?25h");
-  if (worktreeInfo && !worktreeDone) {
-    process.stderr.write(
-      `  ${dim(`worktree remains at ../${worktreeInfo.name}`)}\n`,
-    );
-  }
-  process.exit(1);
-}
-
-process.on("SIGINT", onSignal);
-process.on("SIGTERM", onSignal);
-
-function makeOptions(cmd: Command): RalphOptions {
-  const opts = cmd.optsWithGlobals();
-  const timeoutStr = opts.timeout ?? "0";
-  if (!/^\d+$/.test(timeoutStr)) {
-    throw new Error("--timeout must be a non-negative integer");
-  }
-  return {
-    agent: opts.agent ?? "cursor",
-    debug: opts.debug ?? false,
-    force: opts.force ?? false,
-    noCommit: opts.commit === false,
-    noRefine: opts.refine === false,
-    noReview: opts.review === false,
-    worktree: opts.worktree ?? false,
-    timeout: parseInt(timeoutStr, 10),
-  };
-}
-
-async function setupWorktree(
-  mode: string,
-): Promise<WorktreeInfo | undefined> {
-  const repoRoot = await getRepoRoot();
-  const info = await createWorktree(mode, repoRoot);
-  worktreeInfo = info;
-  process.chdir(info.dir);
-  return info;
-}
+import { createRun, findRun, listRuns, outcomeStatus, saveRun, type RunMode } from "./store.js";
+import { launchCodex, checkPrerequisites, probeClaude } from "./process.js";
+import { makeInitialPrompt, makeResumePrompt } from "./workflow.js";
 
 const program = new Command();
+program.name("ralph").description("Run the ticket-pilot coding workflow").version("2.0.0");
+
+async function resumeRun(runId: string | undefined, repo: string, instruction?: string): Promise<void> {
+  const run = await findRun(repo, runId);
+  if (!run.codexSessionId) throw new Error(`Run ${run.id} has no resumable Codex session`);
+  await checkPrerequisites(run.mode);
+  const result = await launchCodex(run, makeResumePrompt(run, instruction), true);
+  run.lastExitCode = result.exitCode;
+  run.status = await outcomeStatus(run, result.exitCode);
+  run.updatedAt = new Date().toISOString();
+  await saveRun(run);
+  console.log(`\nRun ${run.id}: ${run.status}. Read ${run.dir}/workflow-state.md for the phase and remaining actions.`);
+  if (result.exitCode !== 0) process.exitCode = result.exitCode;
+}
 
 program
-  .name("ralph")
-  .description("autonomous coding loop")
-  .version(pkg.version)
-  .option("-a, --agent <name>", "Agent to use: claude, codex, cursor", "cursor")
-  .option("-d, --debug", "Run agent in foreground (see output in real-time)")
-  .option("-f, --force", "Skip confirmation prompts")
-  .option("-n, --no-commit", "Skip commits (leave changes in working tree)")
-  .option("--no-refine", "Skip plan refinement (create plan only)")
-  .option("--no-review", "Skip final code review")
-  .option("-w, --worktree", "Run in a git worktree (isolates changes)")
-  .option("-t, --timeout <seconds>", "Agent timeout in seconds (0 = none)", "0");
-
-program
-  .command("plan [goal]")
-  .description("Create implementation plan")
-  .action(async (goal: string | undefined) => {
-    const options = makeOptions(program);
-    const config = validateAgent(options.agent);
-    checkAgentInstalled(config);
-    const wt = options.worktree
-      ? await setupWorktree("plan")
-      : undefined;
-    const { runPlan } = await import("./commands/plan.js");
-    const result = await runPlan(goal, config, options, wt);
-    worktreeDone = true;
-    if (result.status === "failed") process.exit(1);
+  .command("run <task>")
+  .description("Investigate, implement, validate, and prepare a PR")
+  .option("--diagnose-only", "Stop after evidence-backed diagnosis and consensus")
+  .option("--local-only", "Complete the workflow without remote writes")
+  .option("--keep-draft", "Do not promote the PR to ready for review")
+  .option("--repo <path>", "Repository to work in", process.cwd())
+  .action(async (task: string, flags) => {
+    if (flags.diagnoseOnly && flags.localOnly) throw new Error("Choose either --diagnose-only or --local-only");
+    const mode: RunMode = flags.diagnoseOnly ? "diagnose-only" : flags.localOnly ? "local-only" : "full";
+    const repo = flags.repo as string;
+    await checkPrerequisites(mode);
+    const run = await createRun(repo, task, mode, Boolean(flags.keepDraft));
+    console.log(`Run ${run.id} · ${run.mode} · ${run.repo}`);
+    const prompt = await makeInitialPrompt(run);
+    const result = await launchCodex(run, prompt);
+    run.codexSessionId = result.sessionId ?? run.codexSessionId;
+    run.lastExitCode = result.exitCode;
+    run.status = await outcomeStatus(run, result.exitCode);
+    run.updatedAt = new Date().toISOString();
+    await saveRun(run);
+    console.log(`\nRun ${run.id}: ${run.status}. Inspect ${run.dir}/workflow-state.md and ${run.dir}/last-message.md.`);
+    if (result.exitCode !== 0) process.exitCode = result.exitCode;
   });
 
 program
-  .command("refine [iterations]")
-  .description("Refine plan iteratively (default: 10)")
-  .action(async (iterations: string | undefined) => {
-    const options = makeOptions(program);
-    const config = validateAgent(options.agent);
-    checkAgentInstalled(config);
-    const { runRefine, DEFAULT_REFINE_ITERATIONS } = await import("./commands/refine.js");
-    const max =
-      iterations && /^\d+$/.test(iterations)
-        ? parseInt(iterations, 10)
-        : DEFAULT_REFINE_ITERATIONS;
-    const wt = options.worktree
-      ? await setupWorktree("refine")
-      : undefined;
-    await runRefine(max, config, options, wt);
-    worktreeDone = true;
+  .command("plan <task>")
+  .description("Reach a two-model diagnosis and design consensus without changing code")
+  .option("--repo <path>", "Repository to work in", process.cwd())
+  .action(async (task: string, flags) => {
+    await checkPrerequisites("diagnose-only");
+    const run = await createRun(flags.repo as string, task, "diagnose-only", false);
+    console.log(`Run ${run.id} · plan · ${run.repo}`);
+    const result = await launchCodex(run, await makeInitialPrompt(run));
+    run.codexSessionId = result.sessionId ?? run.codexSessionId;
+    run.lastExitCode = result.exitCode;
+    run.status = await outcomeStatus(run, result.exitCode);
+    run.updatedAt = new Date().toISOString();
+    await saveRun(run);
+    console.log(`\nRun ${run.id}: ${run.status}. Read ${run.dir}/consensus.md for the decision.`);
+    if (result.exitCode !== 0) process.exitCode = result.exitCode;
   });
 
 program
-  .command("build [iterations]", { isDefault: true })
-  .description("Execute plan (default: 10)")
-  .action(async (iterations: string | undefined) => {
-    const options = makeOptions(program);
-    const config = validateAgent(options.agent);
-    checkAgentInstalled(config);
-    const max =
-      iterations && /^\d+$/.test(iterations)
-        ? parseInt(iterations, 10)
-        : 10;
-    const wt = options.worktree
-      ? await setupWorktree("build")
-      : undefined;
-    const { runBuild, isSuccessStatus } = await import("./commands/build.js");
-    const result = await runBuild(max, config, options, wt);
-    worktreeDone = true;
-    process.exit(isSuccessStatus(result.status) ? 0 : 1);
+  .command("resume [run-id]")
+  .description("Resume a run from its recorded Codex session")
+  .option("--repo <path>", "Repository containing the run", process.cwd())
+  .option("--instruction <text>", "Additional direction for this resume")
+  .action(async (runId: string | undefined, flags) => resumeRun(runId, flags.repo as string, flags.instruction));
+
+for (const [name, phase, instruction] of [
+  ["simplify", "4", "Focus on phase 4: transfer exclusive edit ownership to Claude for first-principles simplification, then inspect, check, and checkpoint its edits. Verify prerequisite phase evidence before acting; do not skip it."],
+  ["review", "5", "Focus on phase 5: fresh scoped correctness, compliance, and completeness review with bounded adjudication and repair. Verify prerequisite phase evidence before acting; do not skip it."],
+  ["babysit", "7", "Focus on phase 7: inspect the current PR head, CI, and reviewer feedback, triage and repair within the remaining budget. Verify prerequisite phase evidence before acting; do not skip it."],
+]) {
+  program.command(`${name} [run-id]`)
+    .description(`Resume a run at workflow phase ${phase} when its prerequisites are met`)
+    .option("--repo <path>", "Repository containing the run", process.cwd())
+    .action(async (runId: string | undefined, flags) => resumeRun(runId, flags.repo as string, instruction));
+}
+
+program
+  .command("status [run-id]")
+  .description("Show a run's durable status and evidence paths")
+  .option("--repo <path>", "Repository containing the run", process.cwd())
+  .action(async (runId: string | undefined, flags) => {
+    const run = await findRun(flags.repo as string, runId);
+    console.log(`${run.id} · ${run.status} · ${run.mode}\nTask: ${run.task}\nUpdated: ${run.updatedAt}\nSession: ${run.codexSessionId ?? "not started"}\nState: ${run.dir}/workflow-state.md\nLast message: ${run.dir}/last-message.md`);
   });
 
 program
-  .command("review [target]")
-  .description("Parallel code review with specialist agents")
-  .option("-s, --staged", "Review staged changes only")
-  .option("-W, --working", "Review working tree (staged + unstaged + untracked)")
-  .action(async (target: string | undefined, cmdOpts) => {
-    const options = makeOptions(program);
-    const config = validateAgent(options.agent);
-    checkAgentInstalled(config);
-    const { runReview } = await import("./commands/review.js");
-    const { parseReviewTarget } = await import("./git.js");
-    const reviewTarget = parseReviewTarget(
-      [target].filter(Boolean) as string[],
-      { staged: cmdOpts.staged ?? false, working: cmdOpts.working ?? false },
-    );
-    const result = await runReview(config, options, reviewTarget);
-    if (result.status !== "completed") process.exit(1);
+  .command("list")
+  .description("List runs for this repository")
+  .option("--repo <path>", "Repository containing the runs", process.cwd())
+  .action(async (flags) => {
+    const runs = await listRuns(flags.repo as string);
+    for (const run of runs) console.log(`${run.id}\t${run.status}\t${run.mode}\t${run.task}`);
   });
 
 program
-  .command("fix [instructions]")
-  .description("Fix issues from code review")
-  .action(async (instructions: string | undefined) => {
-    const options = makeOptions(program);
-    const config = validateAgent(options.agent);
-    checkAgentInstalled(config);
-    const { runFix } = await import("./commands/fix.js");
-    const result = await runFix(instructions, config, options);
-    if (result.status !== "completed") process.exit(1);
+  .command("doctor")
+  .description("Check the CLIs used by the default Codex and Claude pairing")
+  .option("--live", "Make a small Claude request to check auth and usage")
+  .action(async (flags) => {
+    await checkPrerequisites("full");
+    if (flags.live) probeClaude();
+    console.log(flags.live ? "CLIs installed and Claude responded." : "Codex, Claude, Git, and GitHub CLI are installed. Use --live to check Claude authentication and usage.");
   });
-
-program
-  .command("yolo <task>")
-  .description("Full autonomous pipeline: plan, refine, build, review, fix")
-  .action(async (task: string) => {
-    const options = makeOptions(program);
-    const config = validateAgent(options.agent);
-    checkAgentInstalled(config);
-    const wt = options.worktree ? await setupWorktree("yolo") : undefined;
-    const { runYolo } = await import("./commands/yolo.js");
-    const result = await runYolo(task, config, options, wt);
-    worktreeDone = true;
-    if (result.status !== "completed") process.exit(1);
-  });
-
-program
-  .command("update")
-  .description("Update to latest version")
-  .action(async () => {
-    const { runUpdate } = await import("./commands/update.js");
-    const result = await runUpdate();
-    process.exit(result.exitCode);
-  });
-
-program
-  .command("cleanup")
-  .description("Remove ralph temp files")
-  .action(async () => {
-    const options = makeOptions(program);
-    const { runCleanup } = await import("./commands/cleanup.js");
-    await runCleanup({ force: options.force });
-  });
-
-program.exitOverride();
 
 try {
   await program.parseAsync(process.argv);
-} catch (err: unknown) {
-  if (err instanceof Error && "code" in err) {
-    const code = (err as { code: string }).code;
-    if (
-      code === "commander.helpDisplayed" ||
-      code === "commander.version"
-    ) {
-      process.exit(0);
-    }
-  }
-  if (err instanceof Error) {
-    printError(err.message);
-  }
-  process.exit(1);
+} catch (error) {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exitCode = 1;
 }

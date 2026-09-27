@@ -1,15 +1,17 @@
 {
   "name": "ralph-cli",
-  "version": "1.0.0",
-  "description": "AI-powered CLI tool for planning and building software",
-  "engines": { "node": ">=20" },
+  "version": "2.0.0",
+  "description": "Evidence-backed coding workflow with independent diagnosis, review, runtime proof, and PR follow-through",
+  "engines": {
+    "node": ">=20"
+  },
   "type": "module",
   "bin": {
     "ralph": "dist/cli.js"
   },
   "files": [
     "dist",
-    "prompts"
+    "workflow"
   ],
   "scripts": {
     "build": "tsup",
@@ -17,9 +19,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "commander": "^13.1.0",
-    "ora": "^8.2.0",
-    "picocolors": "^1.1.1"
+    "commander": "^13.1.0"
   },
   "devDependencies": {
     "@types/node": "^22.13.4",

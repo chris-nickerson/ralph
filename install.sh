@@ -46,7 +46,7 @@ fi
 
 STAGE_DIR=$(mktemp -d "$HOME/.ralph-install-XXXXXX")
 cp -r "$SRC_DIR/dist" "$STAGE_DIR/dist"
-cp -r "$SRC_DIR/prompts" "$STAGE_DIR/prompts"
+cp -r "$SRC_DIR/workflow" "$STAGE_DIR/workflow"
 cp "$SRC_DIR/package.json" "$STAGE_DIR/package.json"
 cp -r "$SRC_DIR/node_modules" "$STAGE_DIR/node_modules"
 chmod +x "$STAGE_DIR/dist/cli.js"
